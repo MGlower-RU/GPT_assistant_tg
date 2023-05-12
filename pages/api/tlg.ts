@@ -1,37 +1,27 @@
+import { QueryData } from "@/types/tlg.d";
 import { openaiApikeyVar, tgbotVar } from "@/utils/variables";
 import { NextApiRequest, NextApiResponse } from "next";
 import { ChatCompletionRequestMessage, ChatCompletionRequestMessageRoleEnum, ChatCompletionResponseMessageRoleEnum, Configuration, OpenAIApi } from 'openai'
 
 import type { Message } from 'typegram'
 
-const configuration = new Configuration({
-  apiKey: openaiApikeyVar,
-})
-
-const openai = new OpenAIApi(configuration)
+let openai: OpenAIApi | null = null
 
 const messages: ChatCompletionRequestMessage[] = []
-const apiKey: string | null = process.env.OPENAI_API_KEY ?? null
 
 const tlg = async (req: NextApiRequest, res: NextApiResponse) => {
   // return res.status(200).json('ok')
-  const firebase = await fetch('http://localhost:3000/api/firebase', {
+  const message: Message.TextMessage = req.body.message
+  const firebase = await fetch(`http://localhost:3000/api/firebase?chatId=${message.chat.id}`, {
     method: 'GET',
   })
   const fbData = await firebase.json()
+  // if data.error then error type check otherwise assert type as data
   console.log(fbData.data)
-
-  const message: Message.TextMessage = req.body.message
 
   if (!message || !message.text) {
     res.status(500).json('something went wrong!')
   }
-
-  // const db = getFirestore(app)
-  // const querySnapshot = await getDocs(collection(db, "messages"));
-  // querySnapshot.forEach((doc) => {
-  //   console.log(`${doc.id} => ${doc.data()}`);
-  // });
 
   switch (message.text) {
     case '/start':
@@ -41,7 +31,7 @@ const tlg = async (req: NextApiRequest, res: NextApiResponse) => {
       await helpMessage(message)
       break;
     default:
-      await promptMessage(message)
+      await promptMessage(message, 'apiKey', messages)
       break;
   }
   res.status(200).json(message)
@@ -67,9 +57,16 @@ async function helpMessage(message: Message.TextMessage) {
   );
 }
 
-async function promptMessage(message: Message.TextMessage) {
-  // emit event promptMessage to useEffect hook and generate response on client
+async function promptMessage(message: Message.TextMessage, apikey: QueryData.apiKeyQuery, messages: QueryData.messagesQuery) {
   try {
+    if (openai === null) {
+      const configuration = new Configuration({
+        apiKey: openaiApikeyVar // paste apikey from parameter,
+      })
+
+      openai = new OpenAIApi(configuration)
+    }
+    // update messages in firestore
     messages.push({ role: ChatCompletionRequestMessageRoleEnum.User, content: message.text })
 
     const completion = await openai.createChatCompletion({
