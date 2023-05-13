@@ -1,14 +1,9 @@
 import { NextApiRequest, NextApiResponse } from "next"
 
 import { initializeApp } from "firebase/app";
-import { createDoc, getDocumentData } from "@/firebase/functions";
+import { createMessagesDoc, getDocumentData } from "@/firebase/functions";
 import { getFirestore } from "firebase/firestore";
-import { QueryData } from "@/types/tlg.d";
-
-// enum ErrorType {
-//   APIKEY = 'apikey',
-//   QUERY = 'query'
-// }
+import { CollectionTypes, QueryData } from "@/types/tlg.d";
 
 const firebaseConfig = {
   apiKey: process.env.FIREBASE_APIKEY,
@@ -23,19 +18,20 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app)
 
-const firebase = async (req: NextApiRequest, res: NextApiResponse) => {
+const firebase = async (req: NextApiRequest, res: NextApiResponse<QueryData.Data>) => {
+  // set-header and check if valid otherwise return without data
   if (req.method === 'GET') {
     try {
       console.log('firebase GET')
       const chatId = req.query['chatId'] as string
-      const apiKey = await getDocumentData(db, `openai_api_keys/${chatId}`)
+      const apiKey = await getDocumentData<CollectionTypes.OPENAI_API_KEY>(db, `${CollectionTypes.OPENAI_API_KEY}/${chatId}`)
 
-      if (apiKey === null) return res.status(200).json({ error: QueryData.ErrorType.APIKEY })
+      if (apiKey === null) return res.status(400).json({ error: QueryData.ErrorType.APIKEY, data: 'Please enter OpenAI apiKey with command /apikey "your apikey"' })
 
-      const messages = await getDocumentData(db, `messages/${chatId}5`)
+      const messages = await getDocumentData<CollectionTypes.MESSAGES>(db, `${CollectionTypes.MESSAGES}/${chatId}`)
 
       if (messages === null) {
-        console.log(await createDoc(db, `messages/${chatId}5`))
+        console.log(await createMessagesDoc(db, chatId))
         return res.status(200).json({ data: { messages: [], apiKey } })
       }
 
@@ -43,12 +39,12 @@ const firebase = async (req: NextApiRequest, res: NextApiResponse) => {
       return res.status(200).json({ data: { messages, apiKey } })
 
     } catch (error) {
-      res.status(200).json({ error: QueryData.ErrorType.QUERY, data: `Oops...Something went wrong. Reason: /r/n ${error}` })
+      res.status(400).json({ error: QueryData.ErrorType.QUERY, data: `Oops...Something went wrong. Reason: /r/n ${error}` })
     }
   } else if (req.method === 'POST') {
     // insert apikey into firestore
   } else {
-    res.status(200).json('delivered')
+    res.status(400).json({ error: QueryData.ErrorType.OTHER, data: 'Your request is not valid' })
   }
 }
 

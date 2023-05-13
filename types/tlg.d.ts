@@ -6,10 +6,40 @@ namespace QueryData {
 
   export type apiKeyQuery = string
 
+  export type InferQueryType<T> = (T extends CollectionTypes.OPENAI_API_KEY ? apiKeyQuery | null : T extends CollectionTypes.MESSAGES ? messagesQuery | null : never) | null
+
   export enum ErrorType {
     APIKEY = 'apikey',
-    QUERY = 'query'
+    QUERY = 'query',
+    OTHER = 'other'
   }
+
+  type SuccessFirebaseData = {
+    data: {
+      messages: messagesQuery
+      apiKey: apiKeyQuery
+    }
+  }
+
+  type ErrorFirebaseData = {
+    error: QueryData.ErrorType.QUERY
+  }
+
+  type ErrorApikeyData = {
+    error: QueryData.ErrorType.APIKEY
+  }
+
+  type ErrorOther = {
+    error: QueryData.ErrorType.OTHER
+  }
+
+  type ErrorUnion = (ErrorFirebaseData | ErrorApikeyData | ErrorOther) & {
+    data: string
+  }
+
+  export type Data =
+    | SuccessFirebaseData
+    | ErrorUnion
 }
 
 export enum CollectionTypes {

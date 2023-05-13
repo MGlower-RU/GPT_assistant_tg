@@ -4,14 +4,18 @@ import { ChatCompletionRequestMessage } from "openai";
 
 // RETRIEVE DATA
 
-export const getDocumentData = async (db: Firestore, path: string) => {
-  // const collectionType = path.split('/')[0]
+/**
+ * 
+ * @param db Input your database reference
+ * @param path Input path to the document as 'collectionName/docId' (e.g. 'messages/23' will create document with id 23 in messages collection)
+ */
+export const getDocumentData = async <T extends CollectionTypes.MESSAGES | CollectionTypes.OPENAI_API_KEY>(db: Firestore, path: string): Promise<QueryData.InferQueryType<T>> => {
   try {
     const queryRef = doc(db, path)
     const query = await getDoc(queryRef);
 
     if (query.exists()) {
-      return dataType(query.data())
+      return dataType(query.data(), path.split('/')[0])
     } else {
       return null
     }
@@ -20,15 +24,16 @@ export const getDocumentData = async (db: Firestore, path: string) => {
   }
 }
 
-const dataType = (data: DocumentData) => {
+const dataType = (data: DocumentData, type: string) => {
   // if messages exceed items length limit => delete all or shift from array! dunno
-  if (data.messages) {
-    return data.messages as QueryData.messagesQuery
+  switch (type) {
+    case CollectionTypes.MESSAGES:
+      return data.messages
+    case CollectionTypes.OPENAI_API_KEY:
+      return data.apikey
+    default:
+      return null
   }
-  if (data.apikey) {
-    return data.apikey as QueryData.apiKeyQuery
-  }
-  return null
 }
 
 // CREATE DATA
@@ -38,8 +43,8 @@ const dataType = (data: DocumentData) => {
  * @param db Input your database reference
  * @param path Input path to the document as 'collectionName/docId' (e.g. 'messages/23' will create document with id 23 in messages collection)
  */
-export const createDoc = async (db: Firestore, path: string) => {
-  await setDoc(doc(db, path), {
+export const createMessagesDoc = async (db: Firestore, chatId: string) => {
+  await setDoc(doc(db, `${CollectionTypes.MESSAGES}/${chatId}`), {
     messages: []
   })
 }

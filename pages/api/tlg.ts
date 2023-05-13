@@ -1,5 +1,5 @@
 import { QueryData } from "@/types/tlg.d";
-import { openaiApikeyVar, tgbotVar } from "@/utils/variables";
+import { tgbotVar } from "@/utils/variables";
 import { NextApiRequest, NextApiResponse } from "next";
 import { ChatCompletionRequestMessage, ChatCompletionRequestMessageRoleEnum, ChatCompletionResponseMessageRoleEnum, Configuration, OpenAIApi } from 'openai'
 
@@ -7,17 +7,9 @@ import type { Message } from 'typegram'
 
 let openai: OpenAIApi | null = null
 
-const messages: ChatCompletionRequestMessage[] = []
-
 const tlg = async (req: NextApiRequest, res: NextApiResponse) => {
   // return res.status(200).json('ok')
   const message: Message.TextMessage = req.body.message
-  const firebase = await fetch(`http://localhost:3000/api/firebase?chatId=${message.chat.id}`, {
-    method: 'GET',
-  })
-  const fbData = await firebase.json()
-  // if data.error then error type check otherwise assert type as data
-  console.log(fbData.data)
 
   if (!message || !message.text) {
     res.status(500).json('something went wrong!')
@@ -31,10 +23,10 @@ const tlg = async (req: NextApiRequest, res: NextApiResponse) => {
       await helpMessage(message)
       break;
     default:
-      await promptMessage(message, 'apiKey', messages)
+      await promptMessage(message)
       break;
   }
-  res.status(200).json(message)
+  res.status(200).json('ok')
 }
 
 export default tlg
@@ -57,32 +49,45 @@ async function helpMessage(message: Message.TextMessage) {
   );
 }
 
-async function promptMessage(message: Message.TextMessage, apikey: QueryData.apiKeyQuery, messages: QueryData.messagesQuery) {
+async function promptMessage(message: Message.TextMessage) {
   try {
+    const firebase = await fetch(`http://localhost:3000/api/firebase?chatId=${message.chat.id}`, {
+      method: 'GET',
+    })
+    const fbData: QueryData.Data = await firebase.json()
+
+    if ('error' in fbData) {
+      throw new Error(fbData.data, { cause: fbData.error });
+    }
+
     if (openai === null) {
       const configuration = new Configuration({
-        apiKey: openaiApikeyVar // paste apikey from parameter,
+        apiKey: fbData.data.apiKey
       })
-
       openai = new OpenAIApi(configuration)
     }
+
     // update messages in firestore
-    messages.push({ role: ChatCompletionRequestMessageRoleEnum.User, content: message.text })
+    const newMessageArray = [...fbData.data.messages, { role: ChatCompletionRequestMessageRoleEnum.User, content: message.text }]
 
     const completion = await openai.createChatCompletion({
       model: 'gpt-3.5-turbo',
-      messages: messages,
+      messages: newMessageArray,
       temperature: 0.6,
       max_tokens: 1000,
       n: 1
     })
+
     const botResponse = completion.data.choices[0].message;
 
     await fetch(
       `https://api.telegram.org/bot${tgbotVar}/sendMessage?chat_id=${message.chat.id}&text=${botResponse?.content ?? ''}`
     );
-    messages.push({ role: botResponse?.role ?? ChatCompletionResponseMessageRoleEnum.Assistant, content: botResponse?.content ?? '' })
+    newMessageArray.push({ role: botResponse?.role ?? ChatCompletionResponseMessageRoleEnum.Assistant, content: botResponse?.content ?? '' })
+    console.log(newMessageArray)
+    // fetch POST new message array
   } catch (error) {
+    // fetch based on error type
     const errorMessage = `Oops..Something went wrong.%0ATry again later%0AThe cause: ${error}`
     await fetch(
       `https://api.telegram.org/bot${tgbotVar}/sendMessage?chat_id=${message.chat.id}&text=${errorMessage}`
