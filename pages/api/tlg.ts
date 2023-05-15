@@ -6,9 +6,14 @@ import { ChatCompletionRequestMessageRoleEnum, ChatCompletionResponseMessageRole
 import type { Message } from 'typegram'
 
 let openai: OpenAIApi | null = null
+let URL: string | null = null
 
 const tlg = async (req: NextApiRequest, res: NextApiResponse) => {
   // return res.status(200).json('ok')
+  if (URL === null) URL = `https://${req.headers.host}`
+  console.log(`URL is: ${URL}`)
+
+
   const message: Message.TextMessage = req.body.message
 
   if (!message || !message.text) {
@@ -48,10 +53,10 @@ async function helpMessage(message: Message.TextMessage) {
     `https://api.telegram.org/bot${tgbotVar}/sendMessage?chat_id=${message.chat.id}&text=${response}&parse_mode=HTML`
   );
 }
-
+// req.headers.host
 async function promptMessage(message: Message.TextMessage) {
   try {
-    const firebase = await fetch(`http://localhost:3000/api/firebase?chatId=${message.chat.id}`, {
+    const firebase = await fetch(`${URL}/api/firebase?chatId=${message.chat.id}`, {
       method: 'GET',
     })
     const fbData: QueryData.Data = await firebase.json()
@@ -86,7 +91,7 @@ async function promptMessage(message: Message.TextMessage) {
     );
     newMessagesArray.push({ role: botResponse?.role ?? ChatCompletionResponseMessageRoleEnum.Assistant, content: botResponse?.content ?? '' })
 
-    await fetch(`http://localhost:3000/api/firebase`, {
+    await fetch(`${URL}/api/firebase`, {
       method: 'POST',
       body: JSON.stringify({
         type: CollectionTypes.MESSAGES,
