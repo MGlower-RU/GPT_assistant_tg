@@ -1,7 +1,7 @@
-import { QueryData } from "@/types/tlg.d";
+import { CollectionTypes, QueryData } from "@/types/tlg.d";
 import { tgbotVar } from "@/utils/variables";
 import { NextApiRequest, NextApiResponse } from "next";
-import { ChatCompletionRequestMessage, ChatCompletionRequestMessageRoleEnum, ChatCompletionResponseMessageRoleEnum, Configuration, OpenAIApi } from 'openai'
+import { ChatCompletionRequestMessageRoleEnum, ChatCompletionResponseMessageRoleEnum, Configuration, OpenAIApi } from 'openai'
 
 import type { Message } from 'typegram'
 
@@ -60,6 +60,7 @@ async function promptMessage(message: Message.TextMessage) {
       throw new Error(fbData.data, { cause: fbData.error });
     }
 
+    // this section could be used by anyone so i have to initialize openai every request or what? Check foreign code samples
     if (openai === null) {
       const configuration = new Configuration({
         apiKey: fbData.data.apiKey
@@ -68,11 +69,11 @@ async function promptMessage(message: Message.TextMessage) {
     }
 
     // update messages in firestore
-    const newMessageArray = [...fbData.data.messages, { role: ChatCompletionRequestMessageRoleEnum.User, content: message.text }]
+    const newMessagesArray = [...fbData.data.messages, { role: ChatCompletionRequestMessageRoleEnum.User, content: message.text }]
 
     const completion = await openai.createChatCompletion({
       model: 'gpt-3.5-turbo',
-      messages: newMessageArray,
+      messages: newMessagesArray,
       temperature: 0.6,
       max_tokens: 1000,
       n: 1
@@ -83,14 +84,22 @@ async function promptMessage(message: Message.TextMessage) {
     await fetch(
       `https://api.telegram.org/bot${tgbotVar}/sendMessage?chat_id=${message.chat.id}&text=${botResponse?.content ?? ''}`
     );
-    newMessageArray.push({ role: botResponse?.role ?? ChatCompletionResponseMessageRoleEnum.Assistant, content: botResponse?.content ?? '' })
-    console.log(newMessageArray)
-    // fetch POST new message array
+    newMessagesArray.push({ role: botResponse?.role ?? ChatCompletionResponseMessageRoleEnum.Assistant, content: botResponse?.content ?? '' })
+
+    await fetch(`http://localhost:3000/api/firebase`, {
+      method: 'POST',
+      body: JSON.stringify({
+        type: CollectionTypes.MESSAGES,
+        messages: newMessagesArray,
+        chatId: message.chat.id
+      })
+    })
   } catch (error) {
     // fetch based on error type
     const errorMessage = `Oops..Something went wrong.%0ATry again later%0AThe cause: ${error}`
     await fetch(
       `https://api.telegram.org/bot${tgbotVar}/sendMessage?chat_id=${message.chat.id}&text=${errorMessage}`
     );
+    console.log('error in tlg')
   }
 }

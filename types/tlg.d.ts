@@ -46,3 +46,17 @@ export enum CollectionTypes {
   OPENAI_API_KEY = 'openai_api_keys',
   MESSAGES = 'messages'
 }
+
+export type RequestUpdateMessages = {
+  type: CollectionTypes.MESSAGES
+  chatId: string
+  messages: QueryData.messagesQuery
+}
+
+export type RequestUpdateApikey = {
+  type: CollectionTypes.OPENAI_API_KEY
+  chatId: string
+  apikey: QueryData.apiKeyQuery
+}
+
+export type RequestFirebaseApi = RequestUpdateMessages | RequestUpdateApikey
