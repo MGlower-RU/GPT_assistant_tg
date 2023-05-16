@@ -1,6 +1,7 @@
 import { CollectionTypes, QueryData } from "@/types/tlg.d";
 import { tgbotVar } from "@/utils/variables";
 import { NextApiRequest, NextApiResponse } from "next";
+import { ErrorProps } from "next/error";
 import { ChatCompletionRequestMessageRoleEnum, ChatCompletionResponseMessageRoleEnum, Configuration, OpenAIApi } from 'openai'
 
 import type { Message } from 'typegram'
@@ -12,7 +13,6 @@ const tlg = async (req: NextApiRequest, res: NextApiResponse) => {
   // return res.status(200).json('ok')
   if (URL === null) URL = `https://${req.headers.host}`
   console.log(`URL is: ${URL}`)
-
 
   const message: Message.TextMessage = req.body.message
 
@@ -53,7 +53,7 @@ async function helpMessage(message: Message.TextMessage) {
     `https://api.telegram.org/bot${tgbotVar}/sendMessage?chat_id=${message.chat.id}&text=${response}&parse_mode=HTML`
   );
 }
-// req.headers.host
+
 async function promptMessage(message: Message.TextMessage) {
   try {
     const firebase = await fetch(`${URL}/api/firebase?chatId=${message.chat.id}`, {
@@ -61,8 +61,10 @@ async function promptMessage(message: Message.TextMessage) {
     })
     const fbData: QueryData.Data = await firebase.json()
 
+    console.log(fbData);
+
     if ('error' in fbData) {
-      throw new Error(fbData.data, { cause: fbData.error });
+      throw { error: fbData.error, data: fbData.data }
     }
 
     // this section could be used by anyone so i have to initialize openai every request or what? Check foreign code samples
@@ -100,11 +102,21 @@ async function promptMessage(message: Message.TextMessage) {
       })
     })
   } catch (error) {
-    // fetch based on error type
-    const errorMessage = `Oops..Something went wrong.%0ATry again later%0AThe cause: ${error}`
-    await fetch(
-      `https://api.telegram.org/bot${tgbotVar}/sendMessage?chat_id=${message.chat.id}&text=${errorMessage}`
-    );
     console.log('error in tlg')
+    const errorTyped = error as QueryData.Data | ErrorProps
+
+    if ('error' in errorTyped) {
+      console.log('Is it here?')
+
+      await fetch(
+        `https://api.telegram.org/bot${tgbotVar}/sendMessage?chat_id=${message.chat.id}&text=${errorTyped.data}`
+      );
+    } else {
+
+      const errorMessage = `Oops..Something went wrong.%0ATry again later%0AThe cause: ${errorTyped}`
+      await fetch(
+        `https://api.telegram.org/bot${tgbotVar}/sendMessage?chat_id=${message.chat.id}&text=${errorMessage}`
+      );
+    }
   }
 }
