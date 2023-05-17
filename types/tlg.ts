@@ -1,7 +1,6 @@
 import { ChatCompletionRequestMessage } from "openai"
-import { Message } from "typegram"
 
-namespace QueryData {
+export namespace QueryData {
   export type messagesQuery = ChatCompletionRequestMessage[]
 
   export type apiKeyQuery = string

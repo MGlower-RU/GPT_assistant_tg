@@ -1,4 +1,4 @@
-import { CollectionTypes, QueryData } from "@/types/tlg.d";
+import { CollectionTypes, QueryData } from "@/types/tlg";
 import { DocumentData, Firestore, doc, getDoc, setDoc } from "firebase/firestore";
 
 // RETRIEVE DATA
@@ -24,7 +24,6 @@ export const getDocumentData = async <T extends CollectionTypes.MESSAGES | Colle
 }
 
 const dataType = (data: DocumentData, type: string) => {
-  // if messages exceed items length limit => delete all or shift from array! dunno
   switch (type) {
     case CollectionTypes.MESSAGES:
       return data.messages ?? null
@@ -51,18 +50,25 @@ const dataType = (data: DocumentData, type: string) => {
 
 // ADD DATA
 
-// make function generic so it could update apikey as well
 /**
  * 
  * @param db Paste your database reference
  * @param chatId Paste your document id
  * @param messages 
  */
-export const addMessageToDoc = async (db: Firestore, chatId: string, messages: QueryData.messagesQuery): Promise<void> => {
-  console.log('have worked',)
+export const updateMessages = async (db: Firestore, chatId: string, messages: QueryData.messagesQuery): Promise<void> => {
+  // make function generic so it could update apikey as well
   const updatedMessages = messages.length >= 20 ? [] : messages
 
   await setDoc(doc(db, `${CollectionTypes.MESSAGES}/${chatId}`), {
     messages: updatedMessages
+  })
+}
+
+export const updateApikey = async (db: Firestore, chatId: string, apikey: QueryData.apiKeyQuery): Promise<void> => {
+  // make function generic so it could update apikey as well
+
+  await setDoc(doc(db, `${CollectionTypes.OPENAI_API_KEY}/${chatId}`), {
+    apikey
   })
 }

@@ -1,4 +1,4 @@
-import { CollectionTypes, QueryData } from "@/types/tlg.d";
+import { CollectionTypes, QueryData } from "@/types/tlg";
 import { tgbotVar } from "@/utils/variables";
 import { NextApiRequest, NextApiResponse } from "next";
 import { ErrorProps } from "next/error";
@@ -6,13 +6,11 @@ import { ChatCompletionRequestMessageRoleEnum, ChatCompletionResponseMessageRole
 
 import type { Message } from 'typegram'
 
-let openai: OpenAIApi | null = null
 let URL: string | null = null
 
 const tlg = async (req: NextApiRequest, res: NextApiResponse) => {
   // return res.status(200).json('ok')
   if (URL === null) URL = `https://${req.headers.host}`
-  console.log(`URL is: ${URL}`)
 
   const message: Message.TextMessage = req.body.message
 
@@ -20,16 +18,22 @@ const tlg = async (req: NextApiRequest, res: NextApiResponse) => {
     res.status(500).json('something went wrong!')
   }
 
-  switch (message.text) {
-    case '/start':
-      await startMessage(message)
-      break;
-    case '/help':
-      await helpMessage(message)
-      break;
-    default:
-      await promptMessage(message)
-      break;
+  const { text } = message
+
+  if (text.startsWith('/apikey')) {
+    await setApikey(message)
+  } else {
+    switch (text) {
+      case '/start':
+        await startMessage(message)
+        break;
+      case '/help':
+        await helpMessage(message)
+        break;
+      default:
+        await promptMessage(message)
+        break;
+    }
   }
   res.status(200).json('ok')
 }
@@ -54,6 +58,21 @@ async function helpMessage(message: Message.TextMessage) {
   );
 }
 
+async function setApikey(message: Message.TextMessage) {
+  // check case whe provided the apikey with an incorrect length
+  const apikey = message.text.split(' ')[1]
+
+  // if incorrect apikey send a message with Parse HTML so the link to apikeys in OpenAI will be clickable
+  await fetch(`${URL}/api/firebase`, {
+    method: 'POST',
+    body: JSON.stringify({
+      type: CollectionTypes.OPENAI_API_KEY,
+      apikey: apikey ?? '',
+      chatId: message.chat.id
+    })
+  })
+}
+
 async function promptMessage(message: Message.TextMessage) {
   try {
     const firebase = await fetch(`${URL}/api/firebase?chatId=${message.chat.id}`, {
@@ -61,19 +80,15 @@ async function promptMessage(message: Message.TextMessage) {
     })
     const fbData: QueryData.Data = await firebase.json()
 
-    console.log(fbData);
-
     if ('error' in fbData) {
-      throw { error: fbData.error, data: fbData.data }
+      throw fbData
     }
 
-    // this section could be used by anyone so i have to initialize openai every request or what? Check foreign code samples
-    if (openai === null) {
-      const configuration = new Configuration({
-        apiKey: fbData.data.apiKey
-      })
-      openai = new OpenAIApi(configuration)
-    }
+    // do something with constant initializing on function call
+    const configuration = new Configuration({
+      apiKey: fbData.data.apiKey
+    })
+    const openai = new OpenAIApi(configuration)
 
     // update messages in firestore
     const newMessagesArray = [...fbData.data.messages, { role: ChatCompletionRequestMessageRoleEnum.User, content: message.text }]
@@ -106,13 +121,10 @@ async function promptMessage(message: Message.TextMessage) {
     const errorTyped = error as QueryData.Data | ErrorProps
 
     if ('error' in errorTyped) {
-      console.log('Is it here?')
-
       await fetch(
         `https://api.telegram.org/bot${tgbotVar}/sendMessage?chat_id=${message.chat.id}&text=${errorTyped.data}`
       );
     } else {
-
       const errorMessage = `Oops..Something went wrong.%0ATry again later%0AThe cause: ${errorTyped}`
       await fetch(
         `https://api.telegram.org/bot${tgbotVar}/sendMessage?chat_id=${message.chat.id}&text=${errorMessage}`
