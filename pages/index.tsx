@@ -1,58 +1,13 @@
 import Image from "next/image"
 import { Inter } from "next/font/google"
-import { useState } from "react"
 
 const inter = Inter({ subsets: ["latin"] })
 
 export default function Home() {
-  const [animalInput, setAnimalInput] = useState("")
-  const [result, setResult] = useState()
-
-  async function onSubmit(event: any) {
-    event.preventDefault()
-    try {
-      const response = await fetch("/api/hello", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ animal: animalInput }),
-      })
-
-      const data = await response.json()
-      if (response.status !== 200) {
-        throw (
-          data.error ||
-          new Error(`Request failed with status ${response.status}`)
-        )
-      }
-
-      setResult(data.result)
-      setAnimalInput("")
-    } catch (error: any) {
-      // Consider implementing your own error handling logic here
-      console.error(error)
-      alert(error.message)
-    }
-  }
-
   return (
     <main
       className={`flex min-h-screen flex-col items-center justify-between p-24 ${inter.className}`}
     >
-      {/*  */}
-      <form onSubmit={onSubmit}>
-        <input
-          type="text"
-          name="animal"
-          placeholder="Enter an animal"
-          value={animalInput}
-          className="text-black"
-          onChange={(e) => setAnimalInput(e.target.value)}
-        />
-      </form>
-      <div className="text-4xl">{result}</div>
-      {/*  */}
       <div className="z-10 w-full max-w-5xl items-center justify-between font-mono text-sm lg:flex">
         <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
           Get started by editing&nbsp;

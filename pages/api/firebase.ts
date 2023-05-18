@@ -3,7 +3,7 @@ import { NextApiRequest, NextApiResponse } from "next"
 import { initializeApp } from "firebase/app";
 import { updateMessages, getDocumentData, updateApikey } from "@/firebase/functions";
 import { getFirestore } from "firebase/firestore";
-import { CollectionTypes, QueryData, RequestFirebaseApi } from "@/types/tlg";
+import { CatchErrorProps, CollectionTypes, QueryData, RequestFirebaseApi } from "@/types/tlg";
 import { ErrorProps } from "next/error";
 
 const firebaseConfig = {
@@ -37,7 +37,6 @@ const firebase = async (req: NextApiRequest, res: NextApiResponse<QueryData.Data
 
       return res.status(200).json({ data: { messages, apiKey } })
     } else if (req.method === 'POST') {
-      // insert apikey into firestore
       console.log('POST something')
       const data: RequestFirebaseApi = JSON.parse(req.body)
       const { type, chatId } = data
@@ -48,32 +47,34 @@ const firebase = async (req: NextApiRequest, res: NextApiResponse<QueryData.Data
         return res.status(200).send('Messages updated')
       } else if (type === CollectionTypes.OPENAI_API_KEY) {
         const { apikey } = data
-        if (apikey.trim().length > 16) {
-          updateApikey(db, chatId, apikey)
+
+        if (typeof apikey === 'string' && apikey.trim().length > 16) {
+          await updateApikey(db, chatId, apikey)
         } else {
-          throw { error: QueryData.ErrorType.APIKEY, data: 'Enter an actual ApiKey given by OpenAI. /r/n Visit official OpenAI page to see your ApiKey: https://platform.openai.com/account/api-keys' }
+          throw {
+            error: QueryData.ErrorType.APIKEY, data: 'Enter an actual ApiKey given by OpenAI.%0AVisit <a href="https://platform.openai.com/account/api-keys">official OpenAI page</a> to see your apiKey.'
+          }
         }
-        return res.status(200).send('Apikey has been set')
+        return res.status(200).json('Apikey has been set')
       } else {
         throw { error: QueryData.ErrorType.OTHER, data: 'Your request is not valid' }
       }
     } else {
       throw { error: QueryData.ErrorType.OTHER, data: 'Your request is not valid' }
     }
-    return res.status(200).json('ok')
   } catch (error) {
     console.log('error in Fb')
-    const errorTyped = error as QueryData.Data | ErrorProps
+    const typedError = error as CatchErrorProps
 
     // Use this as a typeGuard
     // function isCustomError(error): error is ErrorUnion {
     //   return 'error' in error
     // }
 
-    if ('error' in errorTyped) {
-      res.status(400).json({ error: errorTyped.error, data: errorTyped.data })
+    if ('error' in typedError) {
+      res.status(400).json({ error: typedError.error, data: typedError.data })
     } else {
-      res.status(400).json({ error: QueryData.ErrorType.OTHER, data: `Oops...Something went wrong. Reason: /r/n ${error}` })
+      res.status(400).json({ error: QueryData.ErrorType.OTHER, data: `Oops...Something went wrong. Reason: /r/n ${typedError}` })
     }
   }
 }

@@ -32,13 +32,18 @@ export namespace QueryData {
     error: QueryData.ErrorType.OTHER
   }
 
-  type ErrorUnion = (ErrorFirebaseData | ErrorApikeyData | ErrorOther) & {
+  export type ErrorUnion = (ErrorFirebaseData | ErrorApikeyData | ErrorOther) & {
     data: string
   }
 
   export type Data =
     | SuccessFirebaseData
     | ErrorUnion
+
+  /**
+   * Import type identificator you want to be chosen from like: { error: 'errorVariant' }
+   */
+  export type QueryResponse<T> = Awaited<Promise<Extract<QueryData.ErrorUnion, T> | string>>
 }
 
 export enum CollectionTypes {
@@ -59,3 +64,5 @@ export type RequestUpdateApikey = {
 }
 
 export type RequestFirebaseApi = RequestUpdateMessages | RequestUpdateApikey
+
+export type CatchErrorProps = QueryData.ErrorUnion | Error
