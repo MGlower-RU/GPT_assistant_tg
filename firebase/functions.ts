@@ -1,5 +1,5 @@
 import { CollectionTypes, QueryData } from "@/types/tlg";
-import { DocumentData, Firestore, doc, getDoc, setDoc } from "firebase/firestore";
+import { DocumentData, Firestore, doc, getDoc, getFirestore, setDoc, updateDoc } from "firebase/firestore";
 
 // RETRIEVE DATA
 
@@ -71,4 +71,15 @@ export const updateApikey = async (db: Firestore, chatId: string, apikey: QueryD
   await setDoc(doc(db, `${CollectionTypes.OPENAI_API_KEY}/${chatId}`), {
     apikey
   })
+}
+
+/**
+ * 
+ * @param chatId chatID can be retrieved from telegram request.
+ * @param message Input your text you want to be send by bot here. Accepts HTML.
+ */
+export const telegramSendMessage = async (chatId: number, message: string) => {
+  await fetch(
+    `https://api.telegram.org/bot${process.env.NEXT_TELEGRAM_TOKEN}/sendMessage?chat_id=${chatId}&text=${message}&parse_mode=HTML`
+  );
 }

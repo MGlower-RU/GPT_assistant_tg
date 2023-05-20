@@ -4,7 +4,6 @@ import { initializeApp } from "firebase/app";
 import { updateMessages, getDocumentData, updateApikey } from "@/firebase/functions";
 import { getFirestore } from "firebase/firestore";
 import { CatchErrorProps, CollectionTypes, QueryData, RequestFirebaseApi } from "@/types/tlg";
-import { ErrorProps } from "next/error";
 
 const firebaseConfig = {
   apiKey: process.env.FIREBASE_APIKEY,
@@ -20,14 +19,14 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app)
 
 const firebase = async (req: NextApiRequest, res: NextApiResponse<QueryData.Data | string>) => {
-  // set-header and check if valid otherwise return without data || hash chatId so no one could make a request with CURL
   try {
+    if (req.headers["firebase-query"] !== "firebaseQueryHeader") throw Error("Don't pick on others, please :)")
     if (req.method === 'GET') {
       console.log('firebase GET')
       const chatId = req.query['chatId'] as string
       const apiKey = await getDocumentData<CollectionTypes.OPENAI_API_KEY>(db, `${CollectionTypes.OPENAI_API_KEY}/${chatId}`)
 
-      if (apiKey === null) throw { error: QueryData.ErrorType.APIKEY, data: 'Please enter OpenAI apiKey with command /apikey "your apikey"' }
+      if (apiKey === null) throw { error: QueryData.ErrorType.APIKEY, data: 'Please enter OpenAI apiKey with command /apikey' }
 
       const messages = await getDocumentData<CollectionTypes.MESSAGES>(db, `${CollectionTypes.MESSAGES}/${chatId}`)
 
@@ -74,7 +73,7 @@ const firebase = async (req: NextApiRequest, res: NextApiResponse<QueryData.Data
     if ('error' in typedError) {
       res.status(400).json({ error: typedError.error, data: typedError.data })
     } else {
-      res.status(400).json({ error: QueryData.ErrorType.OTHER, data: `Oops...Something went wrong. Reason: /r/n ${typedError}` })
+      res.status(400).json({ error: QueryData.ErrorType.OTHER, data: `Oops...Something went wrong.%0A${typedError}` })
     }
   }
 }
