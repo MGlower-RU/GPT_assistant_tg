@@ -5,8 +5,6 @@ export namespace QueryData {
 
   export type apiKeyQuery = string
 
-  export type InferQueryType<T> = (T extends CollectionTypes.OPENAI_API_KEY ? apiKeyQuery | null : T extends CollectionTypes.MESSAGES ? messagesQuery | null : never) | null
-
   export enum ErrorType {
     APIKEY = 'apikey',
     QUERY = 'query',
@@ -44,11 +42,19 @@ export namespace QueryData {
    * Import type identificator you want to be chosen from like: { error: 'errorVariant' }
    */
   export type QueryResponse<T> = Awaited<Promise<Extract<QueryData.ErrorUnion, T> | string>>
+
+  export type InferQueryType<T> = (T extends CollectionTypes.OPENAI_API_KEY ? apiKeyQuery | null : T extends CollectionTypes.MESSAGES ? messagesQuery | null : never) | null
 }
 
 export enum CollectionTypes {
   OPENAI_API_KEY = 'openai_api_keys',
-  MESSAGES = 'messages'
+  MESSAGES = 'messages',
+  MESSAGE_TYPES = 'message_types'
+}
+
+export enum MessageTypeStatuses {
+  APIKEY = 'apikey',
+  MODE = 'mode'
 }
 
 export type RequestUpdateMessages = {
@@ -63,6 +69,12 @@ export type RequestUpdateApikey = {
   apikey: QueryData.apiKeyQuery
 }
 
-export type RequestFirebaseApi = RequestUpdateMessages | RequestUpdateApikey
+export type RequesUpdateMessageStatus = {
+  type: CollectionTypes.MESSAGE_TYPES
+  chatId: string
+  status: MessageTypeStatuses
+}
+
+export type RequestFirebaseApi = RequestUpdateMessages | RequestUpdateApikey | RequesUpdateMessageStatus
 
 export type CatchErrorProps = QueryData.ErrorUnion | Error

@@ -1,5 +1,5 @@
-import { CollectionTypes, QueryData } from "@/types/tlg";
-import { DocumentData, Firestore, doc, getDoc, getFirestore, setDoc, updateDoc } from "firebase/firestore";
+import { CollectionTypes, MessageTypeStatuses, QueryData } from "@/types/tlg";
+import { DocumentData, Firestore, doc, getDoc, setDoc } from "firebase/firestore";
 
 // RETRIEVE DATA
 
@@ -8,7 +8,7 @@ import { DocumentData, Firestore, doc, getDoc, getFirestore, setDoc, updateDoc }
  * @param db Input your database reference
  * @param path Input path to the document as 'collectionName/docId' (e.g. 'messages/23' will create document with id 23 in messages collection)
  */
-export const getDocumentData = async <T extends CollectionTypes.MESSAGES | CollectionTypes.OPENAI_API_KEY>(db: Firestore, path: string): Promise<QueryData.InferQueryType<T>> => {
+export const getDocumentData = async <T extends CollectionTypes>(db: Firestore, path: string): Promise<QueryData.InferQueryType<T>> => {
   try {
     const queryRef = doc(db, path)
     const query = await getDoc(queryRef);
@@ -56,7 +56,7 @@ const dataType = (data: DocumentData, type: string) => {
  * @param chatId Paste your document id
  * @param messages 
  */
-export const updateMessages = async (db: Firestore, chatId: string, messages: QueryData.messagesQuery): Promise<void> => {
+export const updateMessages = async (db: Firestore, chatId: number | string, messages: QueryData.messagesQuery): Promise<void> => {
   // make function generic so it could update apikey as well
   const updatedMessages = messages.length >= 20 ? [] : messages
 
@@ -65,7 +65,7 @@ export const updateMessages = async (db: Firestore, chatId: string, messages: Qu
   })
 }
 
-export const updateApikey = async (db: Firestore, chatId: string, apikey: QueryData.apiKeyQuery): Promise<void> => {
+export const updateApikey = async (db: Firestore, chatId: number | string, apikey: QueryData.apiKeyQuery): Promise<void> => {
   // make function generic so it could update apikey as well
 
   await setDoc(doc(db, `${CollectionTypes.OPENAI_API_KEY}/${chatId}`), {
@@ -78,8 +78,12 @@ export const updateApikey = async (db: Firestore, chatId: string, apikey: QueryD
  * @param chatId chatID can be retrieved from telegram request.
  * @param message Input your text you want to be send by bot here. Accepts HTML.
  */
-export const telegramSendMessage = async (chatId: number, message: string) => {
+export const telegramSendMessage = async (chatId: number | string, message: string) => {
   await fetch(
     `https://api.telegram.org/bot${process.env.NEXT_TELEGRAM_TOKEN}/sendMessage?chat_id=${chatId}&text=${message}&parse_mode=HTML`
   );
+}
+
+export const setMessagesStatus = async (chatId: number | string, status: MessageTypeStatuses) => {
+  console.log('set message status here')
 }

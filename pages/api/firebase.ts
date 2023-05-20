@@ -1,7 +1,7 @@
 import { NextApiRequest, NextApiResponse } from "next"
 
 import { initializeApp } from "firebase/app";
-import { updateMessages, getDocumentData, updateApikey } from "@/firebase/functions";
+import { updateMessages, getDocumentData, updateApikey, setMessagesStatus } from "@/firebase/functions";
 import { getFirestore } from "firebase/firestore";
 import { CatchErrorProps, CollectionTypes, QueryData, RequestFirebaseApi } from "@/types/tlg";
 
@@ -20,10 +20,11 @@ const db = getFirestore(app)
 
 const firebase = async (req: NextApiRequest, res: NextApiResponse<QueryData.Data | string>) => {
   try {
-    if (req.headers["firebase-query"] !== "firebaseQueryHeader") throw Error("Don't pick on others, please :)")
+    if (req.headers["firebase-query"] !== "firebaseQueryHeader") throw new Error("Don't pick on others, please :)")
     if (req.method === 'GET') {
       console.log('firebase GET')
       const chatId = req.query['chatId'] as string
+      // make one call instead of two (check apikey in function itself and return an Error if none)
       const apiKey = await getDocumentData<CollectionTypes.OPENAI_API_KEY>(db, `${CollectionTypes.OPENAI_API_KEY}/${chatId}`)
 
       if (apiKey === null) throw { error: QueryData.ErrorType.APIKEY, data: 'Please enter OpenAI apiKey with command /apikey' }
@@ -55,6 +56,10 @@ const firebase = async (req: NextApiRequest, res: NextApiResponse<QueryData.Data
           }
         }
         return res.status(200).json('Apikey has been set')
+      } else if (type === CollectionTypes.MESSAGE_TYPES) {
+        await setMessagesStatus(chatId, data.status)
+        // return res.status(200).json('Enter your apikey:')
+        return res.status(400).json({ error: QueryData.ErrorType.OTHER, data: 'Status spelled with mistakes' })
       } else {
         throw { error: QueryData.ErrorType.OTHER, data: 'Your request is not valid' }
       }
