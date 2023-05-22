@@ -1,5 +1,5 @@
 import { CollectionTypes, MessageTypeStatuses, QueryData } from "@/types/tlg";
-import { DocumentData, Firestore, doc, getDoc, setDoc } from "firebase/firestore";
+import { DocumentData, Firestore, doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
 
 // RETRIEVE DATA
 
@@ -12,6 +12,7 @@ export const getDocumentData = async <T extends CollectionTypes>(db: Firestore, 
   try {
     const queryRef = doc(db, path)
     const query = await getDoc(queryRef);
+    // updateDoc - check if function will only update one field like only |status| in { messages: [], status: 'some-status' }
 
     if (query.exists()) {
       return dataType(query.data(), path.split('/')[0])
@@ -84,6 +85,30 @@ export const telegramSendMessage = async (chatId: number | string, message: stri
   );
 }
 
-export const setMessagesStatus = async (chatId: number | string, status: MessageTypeStatuses) => {
+export const setMessagesStatus = async (db: Firestore, chatId: number | string, status: MessageTypeStatuses) => {
   console.log('set message status here')
+  await updateDoc(doc(db, `${CollectionTypes.USERS}/${chatId}`), {
+    status
+  })
+}
+
+// INITIALIZE USER
+
+export const initializeUserDoc = async (db: Firestore, chatId: string): Promise<void> => {
+  const path = `${CollectionTypes.USERS}/${chatId}`
+  const queryRef = doc(db, path)
+  const query = await getDoc(queryRef)
+
+  if (!query.exists()) {
+    await setDoc(queryRef, {
+      status: MessageTypeStatuses.BOT_PROMPT,
+      apikey: null,
+      messages: []
+    })
+
+    await setDoc(doc(db, `${path}/modes/default`), {
+      name: 'default',
+      description: ''
+    })
+  }
 }

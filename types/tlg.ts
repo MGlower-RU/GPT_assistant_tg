@@ -47,14 +47,28 @@ export namespace QueryData {
 }
 
 export enum CollectionTypes {
+  INITIALIZE = 'initialize',
+  USERS = 'USERS',
+  // -------------------------- //
   OPENAI_API_KEY = 'openai_api_keys',
   MESSAGES = 'messages',
   MESSAGE_TYPES = 'message_types'
 }
 
+export enum RequestType {
+  INITIALIZE = 'initialize',
+}
+
 export enum MessageTypeStatuses {
   APIKEY = 'apikey',
-  MODE = 'mode'
+  MODE_NAME = 'mode_name',
+  MODE_PROMPT = 'mode_prompt',
+  BOT_PROMPT = 'bot_prompt'
+}
+
+export type RequestInitializeUser = {
+  type: RequestType.INITIALIZE
+  chatId: string
 }
 
 export type RequestUpdateMessages = {
@@ -75,6 +89,7 @@ export type RequesUpdateMessageStatus = {
   status: MessageTypeStatuses
 }
 
-export type RequestFirebaseApi = RequestUpdateMessages | RequestUpdateApikey | RequesUpdateMessageStatus
+export type RequestFirebaseApi = RequestInitializeUser
+// export type RequestFirebaseApi = RequestInitializeUser | RequestUpdateMessages | RequestUpdateApikey | RequesUpdateMessageStatus
 
 export type CatchErrorProps = QueryData.ErrorUnion | Error

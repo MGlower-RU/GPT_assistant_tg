@@ -1,9 +1,9 @@
 import { NextApiRequest, NextApiResponse } from "next"
 
 import { initializeApp } from "firebase/app";
-import { updateMessages, getDocumentData, updateApikey, setMessagesStatus } from "@/firebase/functions";
+import { updateMessages, getDocumentData, updateApikey, setMessagesStatus, initializeUserDoc } from "@/firebase/functions";
 import { getFirestore } from "firebase/firestore";
-import { CatchErrorProps, CollectionTypes, QueryData, RequestFirebaseApi } from "@/types/tlg";
+import { CatchErrorProps, CollectionTypes, QueryData, RequestFirebaseApi, RequestType } from "@/types/tlg";
 
 const firebaseConfig = {
   apiKey: process.env.FIREBASE_APIKEY,
@@ -40,27 +40,31 @@ const firebase = async (req: NextApiRequest, res: NextApiResponse<QueryData.Data
       console.log('POST something')
       const data: RequestFirebaseApi = JSON.parse(req.body)
       const { type, chatId } = data
+      if (type === RequestType.INITIALIZE) {
+        await initializeUserDoc(db, chatId)
+        return res.status(200).json('User initialized')
+      }
+      // else if (type === CollectionTypes.MESSAGES) {
+      //   const { messages } = data
+      //   await updateMessages(db, chatId, messages)
+      //   return res.status(200).send('Messages updated')
+      // } else if (type === CollectionTypes.OPENAI_API_KEY) {
+      //   const { apikey } = data
 
-      if (type === CollectionTypes.MESSAGES) {
-        const { messages } = data
-        await updateMessages(db, chatId, messages)
-        return res.status(200).send('Messages updated')
-      } else if (type === CollectionTypes.OPENAI_API_KEY) {
-        const { apikey } = data
-
-        if (typeof apikey === 'string' && apikey.trim().length > 16) {
-          await updateApikey(db, chatId, apikey)
-        } else {
-          throw {
-            error: QueryData.ErrorType.APIKEY, data: 'Enter an actual ApiKey given by OpenAI.%0AVisit <a href="https://platform.openai.com/account/api-keys">official OpenAI page</a> to see your apiKey.'
-          }
-        }
-        return res.status(200).json('Apikey has been set')
-      } else if (type === CollectionTypes.MESSAGE_TYPES) {
-        await setMessagesStatus(chatId, data.status)
-        // return res.status(200).json('Enter your apikey:')
-        return res.status(400).json({ error: QueryData.ErrorType.OTHER, data: 'Status spelled with mistakes' })
-      } else {
+      //   if (typeof apikey === 'string' && apikey.trim().length > 16) {
+      //     await updateApikey(db, chatId, apikey)
+      //   } else {
+      //     throw {
+      //       error: QueryData.ErrorType.APIKEY, data: 'Enter an actual ApiKey given by OpenAI.%0AVisit <a href="https://platform.openai.com/account/api-keys">official OpenAI page</a> to see your apiKey.'
+      //     }
+      //   }
+      //   return res.status(200).json('Apikey has been set')
+      // } else if (type === CollectionTypes.MESSAGE_TYPES) {
+      //   await setMessagesStatus(db, chatId, data.status)
+      //   // return res.status(200).json('Enter your apikey:')
+      //   return res.status(400).json({ error: QueryData.ErrorType.OTHER, data: 'Status spelled with mistakes' })
+      // }
+      else {
         throw { error: QueryData.ErrorType.OTHER, data: 'Your request is not valid' }
       }
     } else {

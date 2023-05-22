@@ -6,23 +6,10 @@ Hook setup: https://api.telegram.org/bot<YOUR_CHAT_TOKEN>/setWebhook?url=<YOUR_H
 - newChat button
 - add roles button to choose role AND newRole button to set new role
 - more generic functions and typo
-
-### Commands
-
-- /start
-- /help
-- /newChat
-- /chatMode
-- /setApikey
-
-## Firestore
-
-- change db structure:
-  -- COLLECTION USERS
-  --- COLLECTIONS WITH ID'S
-  ---- MESSAGES
-  -- COLLECTION SOMETHING ELSE
-
-- /start should initialize user in firebase like (create new document with userId if not exists and also create complementary collection such as messages, modes and so on)
-
+- change greeting screen, when bot is not initialized
 - bring error messages into another file
+
+## Today
+
+- Bring out command function into another file
+- Adapt get function for statuses
