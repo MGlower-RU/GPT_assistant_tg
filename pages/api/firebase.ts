@@ -32,14 +32,16 @@ const firebase = async (req: NextApiRequest, res: NextApiResponse<QueryData.Data
       const messages = await getDocumentData<CollectionTypes.MESSAGES>(db, `${CollectionTypes.MESSAGES}/${chatId}`)
 
       if (messages === null) {
-        return res.status(200).json({ data: { messages: [], apiKey } })
+        return res.status(400).json({ data: { messages: [], apiKey } })
       }
 
       return res.status(200).json({ data: { messages, apiKey } })
     } else if (req.method === 'POST') {
       console.log('POST something')
+
       const data: RequestFirebaseApi = JSON.parse(req.body)
       const { type, chatId } = data
+
       if (type === RequestType.INITIALIZE) {
         await initializeUserDoc(db, chatId)
         return res.status(200).json('User initialized')

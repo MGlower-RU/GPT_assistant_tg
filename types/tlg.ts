@@ -1,13 +1,15 @@
+import { Query } from "firebase/firestore"
 import { ChatCompletionRequestMessage } from "openai"
 
 export namespace QueryData {
   export type messagesQuery = ChatCompletionRequestMessage[]
 
-  export type apiKeyQuery = string
+  export type apiKeyQuery = string | null
 
   export enum ErrorType {
     APIKEY = 'apikey',
-    QUERY = 'query',
+    FIREBASE_QUERY = 'firebase_query',
+    TELEGRAM_QUERY = 'telegram_query',
     OTHER = 'other'
   }
 
@@ -19,7 +21,11 @@ export namespace QueryData {
   }
 
   type ErrorFirebaseData = {
-    error: QueryData.ErrorType.QUERY
+    error: QueryData.ErrorType.FIREBASE_QUERY
+  }
+
+  type ErrorTelegramData = {
+    error: QueryData.ErrorType.TELEGRAM_QUERY
   }
 
   type ErrorApikeyData = {
@@ -30,7 +36,7 @@ export namespace QueryData {
     error: QueryData.ErrorType.OTHER
   }
 
-  export type ErrorUnion = (ErrorFirebaseData | ErrorApikeyData | ErrorOther) & {
+  export type ErrorUnion = (ErrorFirebaseData | ErrorTelegramData | ErrorApikeyData | ErrorOther) & {
     data: string
   }
 

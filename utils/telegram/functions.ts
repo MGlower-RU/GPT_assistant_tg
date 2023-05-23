@@ -7,7 +7,8 @@ const commands: BotCommand[] = [
   { command: "🆕 /new", description: 'start new conversation with bot' },
   { command: "🦖 /mode", description: 'select a mode for current chat and manage modes' },
   { command: "🔑 /apikey", description: 'input your OpenAI apikey' },
-  { command: "📜 /history", description: 'show previous conversation' }
+  { command: "📜 /history", description: 'show previous conversation' },
+  { command: "📌 /retry", description: 'send previous prompt again' }
 ]
 
 const commandsString = commands.reduce((acc, { command, description }) => {
@@ -19,16 +20,16 @@ const commandsString = commands.reduce((acc, { command, description }) => {
 
 export let hostURL: string | null = null
 
-const users: number[] = []
+const errors = {
+  INVALID_APIKEY: { error: QueryData.ErrorType.APIKEY, data: 'Enter an actual ApiKey given by OpenAI.%0AVisit <a href="https://platform.openai.com/account/api-keys">official OpenAI page</a> to see your apiKey.' }
+}
 
 // TELEGRAM COMMANDS FUNCTIONS
 
 export async function startMessage(message: Message.TextMessage) {
   const chatId = message.chat.id
-  users.push(chatId)
-  console.log(users)
 
-
+  // initialize only modes and history
   const result: QueryData.QueryResponse<{ error: QueryData.ErrorType.OTHER }> = await fetch(`${hostURL}/api/firebase`, {
     method: 'POST',
     body: JSON.stringify({
@@ -77,7 +78,9 @@ export async function setApikey(chatId: number) {
 }
 
 export async function promptMessage(message: Message.TextMessage) {
-  const firebase = await fetch(`${hostURL}/api/firebase?chatId=${message.chat.id}`, {
+  const chatId = message.chat.id
+
+  const firebase = await fetch(`${hostURL}/api/firebase?chatId=${chatId}`, {
     method: 'GET',
     headers: {
       "firebase-query": "firebaseQueryHeader"
@@ -89,40 +92,46 @@ export async function promptMessage(message: Message.TextMessage) {
     throw fbData
   }
 
-  // do something with constant initializing on function call
-  const configuration = new Configuration({
-    apiKey: fbData.data.apiKey
-  })
+  const { messages, apiKey } = fbData.data
+
+  if (apiKey === null) {
+    throw errors.INVALID_APIKEY
+  }
+
+  const configuration = new Configuration({ apiKey })
   const openai = new OpenAIApi(configuration)
 
-  // update messages in firestore
-  const newMessagesArray = [...fbData.data.messages, { role: ChatCompletionRequestMessageRoleEnum.User, content: message.text }]
+  messages.push({ role: ChatCompletionRequestMessageRoleEnum.User, content: message.text })
 
   const completion = await openai.createChatCompletion({
     model: 'gpt-3.5-turbo',
-    messages: newMessagesArray,
+    messages: messages,
     temperature: 0.6,
     max_tokens: 1000,
     n: 1
-  }).catch(() => { throw { error: QueryData.ErrorType.APIKEY, data: 'Enter an actual ApiKey given by OpenAI.%0AVisit <a href="https://platform.openai.com/account/api-keys">official OpenAI page</a> to see your apiKey.' } })
+  }).catch(() => { throw errors.INVALID_APIKEY })
 
   const botResponse = completion.data.choices[0].message;
 
-  await telegramSendMessage(message.chat.id, botResponse?.content ?? '')
+  if (botResponse?.content === undefined) {
+    await telegramSendMessage(chatId, "Bot couldn't answer your question%0ATry to ask another one")
+  } else {
+    await telegramSendMessage(chatId, botResponse.content)
 
-  newMessagesArray.push({ role: botResponse?.role ?? ChatCompletionResponseMessageRoleEnum.Assistant, content: botResponse?.content ?? '' })
+    messages.push({ role: botResponse.role, content: botResponse?.content ?? '' })
 
-  await fetch(`${hostURL}/api/firebase`, {
-    method: 'POST',
-    body: JSON.stringify({
-      type: CollectionTypes.MESSAGES,
-      messages: newMessagesArray,
-      chatId: message.chat.id
-    }),
-    headers: {
-      "firebase-query": "firebaseQueryHeader"
-    }
-  })
+    await fetch(`${hostURL}/api/firebase`, {
+      method: 'POST',
+      body: JSON.stringify({
+        type: CollectionTypes.MESSAGES,
+        messages,
+        chatId
+      }),
+      headers: {
+        "firebase-query": "firebaseQueryHeader"
+      }
+    })
+  }
 }
 
 
@@ -130,7 +139,7 @@ export async function promptMessage(message: Message.TextMessage) {
 
 /**
  * 
- * @param url send your site hostURL
+ * @param url Input your site hostURL
  */
 export const setURL = (url: string): void => { hostURL = url }
 
@@ -142,5 +151,10 @@ export const setURL = (url: string): void => { hostURL = url }
 export const telegramSendMessage = async (chatId: number | string, message: string) => {
   await fetch(
     `https://api.telegram.org/bot${process.env.NEXT_TELEGRAM_TOKEN}/sendMessage?chat_id=${chatId}&text=${message}&parse_mode=HTML`
-  );
+  ).catch(err => {
+    throw {
+      error: QueryData.ErrorType.TELEGRAM_QUERY,
+      data: `Couldn't send telegram message%0AReason: ${err}`
+    }
+  });
 }

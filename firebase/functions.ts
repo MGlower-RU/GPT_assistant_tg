@@ -74,17 +74,6 @@ export const updateApikey = async (db: Firestore, chatId: number | string, apike
   })
 }
 
-/**
- * 
- * @param chatId chatID can be retrieved from telegram request.
- * @param message Input your text you want to be send by bot here. Accepts HTML.
- */
-export const telegramSendMessage = async (chatId: number | string, message: string) => {
-  await fetch(
-    `https://api.telegram.org/bot${process.env.NEXT_TELEGRAM_TOKEN}/sendMessage?chat_id=${chatId}&text=${message}&parse_mode=HTML`
-  );
-}
-
 export const setMessagesStatus = async (db: Firestore, chatId: number | string, status: MessageTypeStatuses) => {
   console.log('set message status here')
   await updateDoc(doc(db, `${CollectionTypes.USERS}/${chatId}`), {
@@ -101,7 +90,6 @@ export const initializeUserDoc = async (db: Firestore, chatId: string): Promise<
 
   if (!query.exists()) {
     await setDoc(queryRef, {
-      status: MessageTypeStatuses.BOT_PROMPT,
       apikey: null,
       messages: []
     })

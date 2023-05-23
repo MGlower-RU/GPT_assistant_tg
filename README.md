@@ -12,4 +12,6 @@ Hook setup: https://api.telegram.org/bot<YOUR_CHAT_TOKEN>/setWebhook?url=<YOUR_H
 ## Today
 
 - Bring out command function into another file
-- Adapt get function for statuses
+- Adapt get function for statuses -- maybe set status locally
+- set messages locally and chat history in Firestore
+- keep apikey locally and update on its change (/apikey command)
