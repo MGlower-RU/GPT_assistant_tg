@@ -25,12 +25,12 @@ export const getUserData = async (db: Firestore, chatId: number): Promise<QueryD
   const userData = await getDocumentData(db, `${CollectionTypes.USERS}/${chatId}`)
 
   if (!userData.exists()) {
-    throw { error: QueryData.ErrorType, data: 'User is not found' }
+    throw errors.FIREBASE_QUERY('User is not found')
   }
 
   const { apiKey, messages } = userData.data() as QueryData.UserDataQuery
 
-  if (apiKey === null) throw errors.INVALID_APIKEY
+  if (apiKey === null) throw errors.INVALID_APIKEY()
 
   return {
     apiKey, messages

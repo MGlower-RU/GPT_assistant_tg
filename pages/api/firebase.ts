@@ -4,6 +4,7 @@ import { initializeApp } from "firebase/app";
 import { getUserData, initializeUserDoc, updateMessages } from "@/firebase/functions";
 import { getFirestore } from "firebase/firestore";
 import { CatchErrorProps, MessageAction, QueryData, RequestFirebaseApi } from "@/types/tlg";
+import { errors } from "@/utils/telegram/errors";
 
 const firebaseConfig = {
   apiKey: process.env.FIREBASE_APIKEY,
@@ -72,10 +73,10 @@ const firebase = async (req: NextApiRequest, res: NextApiResponse<QueryData.Data
       //   return res.status(400).json({ error: QueryData.ErrorType.OTHER, data: 'Status spelled with mistakes' })
       // }
       else {
-        throw { error: QueryData.ErrorType.OTHER, data: 'Your request is not valid' }
+        throw errors.OTHER()
       }
     } else {
-      throw { error: QueryData.ErrorType.OTHER, data: 'Your request is not valid' }
+      throw errors.OTHER()
     }
   } catch (error) {
     console.log('error in Fb')
@@ -89,7 +90,7 @@ const firebase = async (req: NextApiRequest, res: NextApiResponse<QueryData.Data
     if ('error' in typedError) {
       res.status(400).json(typedError)
     } else {
-      res.status(400).json({ error: QueryData.ErrorType.OTHER, data: `Oops...Something went wrong.%0A${typedError}` })
+      res.status(400).json(errors.OTHER(`Oops...Something went wrong.%0A${typedError}`))
     }
   }
 }

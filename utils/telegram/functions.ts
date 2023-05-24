@@ -113,7 +113,7 @@ export const getBotPrompt = async (chatId: number, content: string) => {
   const { messages, apiKey } = fbData
 
   if (apiKey === null) {
-    throw errors.INVALID_APIKEY
+    throw errors.INVALID_APIKEY()
   }
 
   const configuration = new Configuration({ apiKey })
@@ -128,7 +128,7 @@ export const getBotPrompt = async (chatId: number, content: string) => {
     max_tokens: 1000,
     n: 1
   }).catch(() => {
-    throw errors.INVALID_APIKEY
+    throw errors.INVALID_APIKEY()
   })
 
   const botResponse = completion.data.choices[0].message;
@@ -179,9 +179,6 @@ export const telegramSendMessage = async (chatId: number | string, message: stri
   await fetch(
     `https://api.telegram.org/bot${process.env.NEXT_TELEGRAM_TOKEN}/sendMessage?chat_id=${chatId}&text=${message}&parse_mode=HTML`
   ).catch(err => {
-    throw {
-      error: QueryData.ErrorType.TELEGRAM_QUERY,
-      data: `Couldn't send telegram message%0AReason: ${err}`
-    }
+    throw errors.TELEGRAM_QUERY(`Couldn't send telegram message%0AReason: ${err}`)
   });
 }
