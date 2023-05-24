@@ -1,6 +1,7 @@
-import { CollectionTypes, MessageTypeStatuses, QueryData, RequestType } from "@/types/tlg"
-import { ChatCompletionRequestMessageRoleEnum, ChatCompletionResponseMessageRoleEnum, Configuration, OpenAIApi } from "openai"
+import { CollectionTypes, MessageAction, QueryData } from "@/types/tlg"
+import { ChatCompletionRequestMessageRoleEnum, Configuration, OpenAIApi } from "openai"
 import { BotCommand, Message } from "typegram"
+import { errors } from "./errors"
 
 const commands: BotCommand[] = [
   { command: "😣 /help", description: 'get information of how this bot works' },
@@ -18,11 +19,11 @@ const commandsString = commands.reduce((acc, { command, description }) => {
     `
 }, '')
 
+const usersMessagesAction = new Map<number, MessageAction>()
+
 export let hostURL: string | null = null
 
-const errors = {
-  INVALID_APIKEY: { error: QueryData.ErrorType.APIKEY, data: 'Enter an actual ApiKey given by OpenAI.%0AVisit <a href="https://platform.openai.com/account/api-keys">official OpenAI page</a> to see your apiKey.' }
-}
+export const USER_MESSAGES_MAX_LENGTH = 30
 
 // TELEGRAM COMMANDS FUNCTIONS
 
@@ -33,7 +34,7 @@ export async function startMessage(message: Message.TextMessage) {
   const result: QueryData.QueryResponse<{ error: QueryData.ErrorType.OTHER }> = await fetch(`${hostURL}/api/firebase`, {
     method: 'POST',
     body: JSON.stringify({
-      type: RequestType.INITIALIZE,
+      action: MessageAction.INITIALIZE,
       chatId
     }),
     headers: {
@@ -44,6 +45,8 @@ export async function startMessage(message: Message.TextMessage) {
   if (typeof result !== 'string') {
     throw result
   }
+
+  usersMessagesAction.set(chatId, usersMessagesAction.get(chatId) ?? MessageAction.BOT_PROMPT)
 
   const response = `
     Welcome to <i>AI assistant bot</i>, ${message.from?.first_name}
@@ -64,7 +67,7 @@ export async function setApikey(chatId: number) {
     method: 'POST',
     body: JSON.stringify({
       type: CollectionTypes.MESSAGE_TYPES,
-      status: MessageTypeStatuses.APIKEY,
+      status: MessageAction.APIKEY,
       chatId
     }),
     headers: {
@@ -77,9 +80,24 @@ export async function setApikey(chatId: number) {
   }
 }
 
-export async function promptMessage(message: Message.TextMessage) {
-  const chatId = message.chat.id
+export async function defaultMessage(message: Message.TextMessage) {
+  const { chat: { id }, text } = message
+  const actionType = usersMessagesAction.get(id)
 
+  if (!actionType) usersMessagesAction.set(id, MessageAction.BOT_PROMPT)
+
+  // change to switch if possible
+  if (usersMessagesAction.get(id) === MessageAction.BOT_PROMPT) {
+    await getBotPrompt(id, text)
+  }
+}
+
+/**
+ * Function to get an answer on prompt from GPT-bot
+ * @param chatId id of your telegram chat
+ * @param content a prompt you want to pass to the bot
+ */
+export const getBotPrompt = async (chatId: number, content: string) => {
   const firebase = await fetch(`${hostURL}/api/firebase?chatId=${chatId}`, {
     method: 'GET',
     headers: {
@@ -92,7 +110,7 @@ export async function promptMessage(message: Message.TextMessage) {
     throw fbData
   }
 
-  const { messages, apiKey } = fbData.data
+  const { messages, apiKey } = fbData
 
   if (apiKey === null) {
     throw errors.INVALID_APIKEY
@@ -101,7 +119,7 @@ export async function promptMessage(message: Message.TextMessage) {
   const configuration = new Configuration({ apiKey })
   const openai = new OpenAIApi(configuration)
 
-  messages.push({ role: ChatCompletionRequestMessageRoleEnum.User, content: message.text })
+  messages.push({ role: ChatCompletionRequestMessageRoleEnum.User, content })
 
   const completion = await openai.createChatCompletion({
     model: 'gpt-3.5-turbo',
@@ -109,7 +127,9 @@ export async function promptMessage(message: Message.TextMessage) {
     temperature: 0.6,
     max_tokens: 1000,
     n: 1
-  }).catch(() => { throw errors.INVALID_APIKEY })
+  }).catch(() => {
+    throw errors.INVALID_APIKEY
+  })
 
   const botResponse = completion.data.choices[0].message;
 
@@ -123,7 +143,7 @@ export async function promptMessage(message: Message.TextMessage) {
     await fetch(`${hostURL}/api/firebase`, {
       method: 'POST',
       body: JSON.stringify({
-        type: CollectionTypes.MESSAGES,
+        action: MessageAction.BOT_PROMPT,
         messages,
         chatId
       }),
@@ -142,6 +162,13 @@ export async function promptMessage(message: Message.TextMessage) {
  * @param url Input your site hostURL
  */
 export const setURL = (url: string): void => { hostURL = url }
+
+/**
+ * Function accepts telegram chat id and returns current user's message type
+ * @param chatId telegram chat id
+ * @returns user's message type
+ */
+export const getUserStatus = (chatId: number): MessageAction => usersMessagesAction.get(chatId)!
 
 /**
  * 

@@ -1,5 +1,7 @@
-import { CollectionTypes, MessageTypeStatuses, QueryData } from "@/types/tlg";
-import { DocumentData, Firestore, doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
+import { CollectionTypes, QueryData } from "@/types/tlg";
+import { errors } from "@/utils/telegram/errors";
+import { USER_MESSAGES_MAX_LENGTH } from "@/utils/telegram/functions";
+import { DocumentData, DocumentSnapshot, Firestore, Query, doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
 
 // RETRIEVE DATA
 
@@ -8,48 +10,49 @@ import { DocumentData, Firestore, doc, getDoc, setDoc, updateDoc } from "firebas
  * @param db Input your database reference
  * @param path Input path to the document as 'collectionName/docId' (e.g. 'messages/23' will create document with id 23 in messages collection)
  */
-export const getDocumentData = async <T extends CollectionTypes>(db: Firestore, path: string): Promise<QueryData.InferQueryType<T>> => {
+export const getDocumentData = async (db: Firestore, path: string): Promise<DocumentSnapshot<DocumentData>> => {
   try {
     const queryRef = doc(db, path)
     const query = await getDoc(queryRef);
-    // updateDoc - check if function will only update one field like only |status| in { messages: [], status: 'some-status' }
 
-    if (query.exists()) {
-      return dataType(query.data(), path.split('/')[0])
-    } else {
-      return null
-    }
+    return query
   } catch (error) {
-    return null
+    throw new Error("Couldn't get documentData")
   }
 }
 
-const dataType = (data: DocumentData, type: string) => {
-  switch (type) {
-    case CollectionTypes.MESSAGES:
-      return data.messages ?? null
-    case CollectionTypes.OPENAI_API_KEY:
-      return data.apikey ?? null
-    default:
-      return null
+export const getUserData = async (db: Firestore, chatId: number): Promise<QueryData.UserDataQuery> => {
+  const userData = await getDocumentData(db, `${CollectionTypes.USERS}/${chatId}`)
+
+  if (!userData.exists()) {
+    throw { error: QueryData.ErrorType, data: 'User is not found' }
+  }
+
+  const { apiKey, messages } = userData.data() as QueryData.UserDataQuery
+
+  if (apiKey === null) throw errors.INVALID_APIKEY
+
+  return {
+    apiKey, messages
   }
 }
-
-// CREATE DATA
-
-// I think this function is a bit excessive because when i use POST method, there is a doc creation
-// /**
-//  *
-//  * @param db Input your database reference
-//  * @param path Input path to the document as 'collectionName/docId' (e.g. 'messages/23' will create document with id 23 in messages collection)
-//  */
-// export const createMessagesDoc = async (db: Firestore, chatId: string) => {
-//   await setDoc(doc(db, `${CollectionTypes.MESSAGES}/${chatId}`), {
-//     messages: []
-//   })
-// }
 
 // ADD DATA
+
+/**
+ * 
+ * @param db 
+ * @param path 
+ * @param data 
+ */
+export const updateDocumentData = async (db: Firestore, path: string, data: Partial<QueryData.UserDataQuery>) => {
+  try {
+    const queryRef = doc(db, path)
+    await updateDoc(queryRef, data);
+  } catch (error) {
+    throw new Error("Couldn't get documentData")
+  }
+}
 
 /**
  * 
@@ -57,16 +60,19 @@ const dataType = (data: DocumentData, type: string) => {
  * @param chatId Paste your document id
  * @param messages 
  */
-export const updateMessages = async (db: Firestore, chatId: number | string, messages: QueryData.messagesQuery): Promise<void> => {
-  // make function generic so it could update apikey as well
-  const updatedMessages = messages.length >= 20 ? [] : messages
-
-  await setDoc(doc(db, `${CollectionTypes.MESSAGES}/${chatId}`), {
-    messages: updatedMessages
-  })
+export const updateMessages = async (db: Firestore, chatId: number, messages: QueryData.MessagesQuery): Promise<void> => {
+  // send message to user so he knows about newChat
+  const updatedMessages = messages.length >= USER_MESSAGES_MAX_LENGTH ? [] : messages
+  await updateDocumentData(db, `${CollectionTypes.USERS}/${chatId}`, { messages: updatedMessages })
 }
 
-export const updateApikey = async (db: Firestore, chatId: number | string, apikey: QueryData.apiKeyQuery): Promise<void> => {
+/**
+ * 
+ * @param db 
+ * @param chatId 
+ * @param apikey 
+ */
+export const updateApikey = async (db: Firestore, chatId: number, apikey: QueryData.ApikeyQuery): Promise<void> => {
   // make function generic so it could update apikey as well
 
   await setDoc(doc(db, `${CollectionTypes.OPENAI_API_KEY}/${chatId}`), {
@@ -74,22 +80,16 @@ export const updateApikey = async (db: Firestore, chatId: number | string, apike
   })
 }
 
-export const setMessagesStatus = async (db: Firestore, chatId: number | string, status: MessageTypeStatuses) => {
-  console.log('set message status here')
-  await updateDoc(doc(db, `${CollectionTypes.USERS}/${chatId}`), {
-    status
-  })
-}
 
 // INITIALIZE USER
 
-export const initializeUserDoc = async (db: Firestore, chatId: string): Promise<void> => {
+export const initializeUserDoc = async (db: Firestore, chatId: number): Promise<void> => {
+  // getDocumentQuery
   const path = `${CollectionTypes.USERS}/${chatId}`
-  const queryRef = doc(db, path)
-  const query = await getDoc(queryRef)
+  const userData = await getDocumentData(db, path)
 
-  if (!query.exists()) {
-    await setDoc(queryRef, {
+  if (!userData.exists()) {
+    await setDoc(userData.ref, {
       apikey: null,
       messages: []
     })

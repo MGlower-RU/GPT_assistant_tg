@@ -1,9 +1,9 @@
 import { NextApiRequest, NextApiResponse } from "next"
 
 import { initializeApp } from "firebase/app";
-import { updateMessages, getDocumentData, updateApikey, setMessagesStatus, initializeUserDoc } from "@/firebase/functions";
+import { getUserData, initializeUserDoc, updateMessages } from "@/firebase/functions";
 import { getFirestore } from "firebase/firestore";
-import { CatchErrorProps, CollectionTypes, QueryData, RequestFirebaseApi, RequestType } from "@/types/tlg";
+import { CatchErrorProps, MessageAction, QueryData, RequestFirebaseApi } from "@/types/tlg";
 
 const firebaseConfig = {
   apiKey: process.env.FIREBASE_APIKEY,
@@ -21,30 +21,35 @@ const db = getFirestore(app)
 const firebase = async (req: NextApiRequest, res: NextApiResponse<QueryData.Data | string>) => {
   try {
     if (req.headers["firebase-query"] !== "firebaseQueryHeader") throw new Error("Don't pick on others, please :)")
+
     if (req.method === 'GET') {
       console.log('firebase GET')
+
       const chatId = req.query['chatId'] as string
-      // make one call instead of two (check apikey in function itself and return an Error if none)
-      const apiKey = await getDocumentData<CollectionTypes.OPENAI_API_KEY>(db, `${CollectionTypes.OPENAI_API_KEY}/${chatId}`)
 
-      if (apiKey === null) throw { error: QueryData.ErrorType.APIKEY, data: 'Please enter OpenAI apiKey with command /apikey' }
+      if (!chatId) throw new Error("Incorrect request");
 
-      const messages = await getDocumentData<CollectionTypes.MESSAGES>(db, `${CollectionTypes.MESSAGES}/${chatId}`)
+      const userData = await getUserData(db, +chatId)
 
-      if (messages === null) {
-        return res.status(400).json({ data: { messages: [], apiKey } })
-      }
 
-      return res.status(200).json({ data: { messages, apiKey } })
+      // if (userData.messages === null) {
+      //   return res.status(400).json({ data: { messages: [], apiKey } })
+      // }
+
+      return res.status(200).json(userData)
     } else if (req.method === 'POST') {
       console.log('POST something')
 
       const data: RequestFirebaseApi = JSON.parse(req.body)
-      const { type, chatId } = data
+      const { action, chatId } = data
 
-      if (type === RequestType.INITIALIZE) {
-        await initializeUserDoc(db, chatId)
+      // maybe access statuses directly
+      if (action === MessageAction.INITIALIZE) {
+        await initializeUserDoc(db, +chatId)
         return res.status(200).json('User initialized')
+      } else if (action === MessageAction.BOT_PROMPT) {
+        await updateMessages(db, +chatId, data.messages)
+        return res.status(200).json('Messages updated')
       }
       // else if (type === CollectionTypes.MESSAGES) {
       //   const { messages } = data
@@ -82,7 +87,7 @@ const firebase = async (req: NextApiRequest, res: NextApiResponse<QueryData.Data
     // }
 
     if ('error' in typedError) {
-      res.status(400).json({ error: typedError.error, data: typedError.data })
+      res.status(400).json(typedError)
     } else {
       res.status(400).json({ error: QueryData.ErrorType.OTHER, data: `Oops...Something went wrong.%0A${typedError}` })
     }

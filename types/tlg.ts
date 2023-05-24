@@ -1,23 +1,20 @@
-import { Query } from "firebase/firestore"
 import { ChatCompletionRequestMessage } from "openai"
 
 export namespace QueryData {
-  export type messagesQuery = ChatCompletionRequestMessage[]
+  export type MessagesQuery = ChatCompletionRequestMessage[]
 
-  export type apiKeyQuery = string | null
+  export type ApikeyQuery = string | null
+
+  export type UserDataQuery = {
+    apiKey: ApikeyQuery
+    messages: MessagesQuery
+  }
 
   export enum ErrorType {
     APIKEY = 'apikey',
     FIREBASE_QUERY = 'firebase_query',
     TELEGRAM_QUERY = 'telegram_query',
     OTHER = 'other'
-  }
-
-  type SuccessFirebaseData = {
-    data: {
-      messages: messagesQuery
-      apiKey: apiKeyQuery
-    }
   }
 
   type ErrorFirebaseData = {
@@ -41,7 +38,7 @@ export namespace QueryData {
   }
 
   export type Data =
-    | SuccessFirebaseData
+    | UserDataQuery
     | ErrorUnion
 
   /**
@@ -49,7 +46,7 @@ export namespace QueryData {
    */
   export type QueryResponse<T> = Awaited<Promise<Extract<QueryData.ErrorUnion, T> | string>>
 
-  export type InferQueryType<T> = (T extends CollectionTypes.OPENAI_API_KEY ? apiKeyQuery | null : T extends CollectionTypes.MESSAGES ? messagesQuery | null : never) | null
+  export type InferQueryType<T> = (T extends CollectionTypes.OPENAI_API_KEY ? ApikeyQuery | null : T extends CollectionTypes.MESSAGES ? MessagesQuery | null : never) | null
 }
 
 export enum CollectionTypes {
@@ -65,37 +62,42 @@ export enum RequestType {
   INITIALIZE = 'initialize',
 }
 
-export enum MessageTypeStatuses {
+export enum MessageAction {
+  INITIALIZE = 'initialize',
   APIKEY = 'apikey',
   MODE_NAME = 'mode_name',
   MODE_PROMPT = 'mode_prompt',
   BOT_PROMPT = 'bot_prompt'
 }
 
+// maybe remove it
 export type RequestInitializeUser = {
-  type: RequestType.INITIALIZE
+  action: MessageAction.INITIALIZE
   chatId: string
 }
 
 export type RequestUpdateMessages = {
-  type: CollectionTypes.MESSAGES
+  action: MessageAction.BOT_PROMPT
   chatId: string
-  messages: QueryData.messagesQuery
+  messages: QueryData.MessagesQuery
 }
 
-export type RequestUpdateApikey = {
-  type: CollectionTypes.OPENAI_API_KEY
-  chatId: string
-  apikey: QueryData.apiKeyQuery
-}
+// export type RequestUpdateApikey = {
+//   type: CollectionTypes.OPENAI_API_KEY
+//   chatId: string
+//   apikey: QueryData.apiKeyQuery
+// }
 
-export type RequesUpdateMessageStatus = {
-  type: CollectionTypes.MESSAGE_TYPES
-  chatId: string
-  status: MessageTypeStatuses
-}
+// export type RequesUpdateMessageStatus = {
+//   type: CollectionTypes.MESSAGE_TYPES
+//   chatId: string
+//   status: MessageTypes
+// }
 
-export type RequestFirebaseApi = RequestInitializeUser
+export type RequestFirebaseApi = { chatId: string } & (
+  | RequestInitializeUser
+  | RequestUpdateMessages
+)
 // export type RequestFirebaseApi = RequestInitializeUser | RequestUpdateMessages | RequestUpdateApikey | RequesUpdateMessageStatus
 
 export type CatchErrorProps = QueryData.ErrorUnion | Error

@@ -1,4 +1,4 @@
-import { helpMessage, hostURL, promptMessage, setApikey, setURL, startMessage, telegramSendMessage } from "@/utils/telegram/functions";
+import { helpMessage, hostURL, defaultMessage, setApikey, setURL, startMessage, telegramSendMessage } from "@/utils/telegram/functions";
 import { CatchErrorProps } from "@/types/tlg";
 import { NextApiRequest, NextApiResponse } from "next";
 
@@ -27,7 +27,7 @@ const tlg = async (req: NextApiRequest, res: NextApiResponse) => {
         await setApikey(message.chat.id)
         break;
       default:
-        await promptMessage(message)
+        await defaultMessage(message)
         break;
     }
   }
