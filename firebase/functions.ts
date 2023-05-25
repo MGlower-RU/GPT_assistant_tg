@@ -56,28 +56,23 @@ export const updateDocumentData = async (db: Firestore, path: string, data: Part
 
 /**
  * 
- * @param db Paste your database reference
- * @param chatId Paste your document id
- * @param messages 
+ * @param db Input your database reference
+ * @param chatId Input your telegram chat id
+ * @param messages Input array of messages
  */
 export const updateMessages = async (db: Firestore, chatId: number, messages: QueryData.MessagesQuery): Promise<void> => {
-  // send message to user so he knows about newChat
   const updatedMessages = messages.length >= USER_MESSAGES_MAX_LENGTH ? [] : messages
   await updateDocumentData(db, `${CollectionTypes.USERS}/${chatId}`, { messages: updatedMessages })
 }
 
 /**
  * 
- * @param db 
- * @param chatId 
- * @param apikey 
+ * @param db Input your database reference
+ * @param chatId Input your telegram chat id
+ * @param apikey Input your apiKey
  */
-export const updateApikey = async (db: Firestore, chatId: number, apikey: QueryData.ApikeyQuery): Promise<void> => {
-  // make function generic so it could update apikey as well
-
-  await setDoc(doc(db, `${CollectionTypes.OPENAI_API_KEY}/${chatId}`), {
-    apikey
-  })
+export const updateApiKey = async (db: Firestore, chatId: number, apiKey: QueryData.ApikeyQuery): Promise<void> => {
+  await updateDocumentData(db, `${CollectionTypes.USERS}/${chatId}`, { apiKey })
 }
 
 

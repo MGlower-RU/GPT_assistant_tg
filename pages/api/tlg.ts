@@ -1,4 +1,4 @@
-import { helpMessage, hostURL, defaultMessage, setApikey, setURL, startMessage, telegramSendMessage } from "@/utils/telegram/functions";
+import { helpMessage, hostURL, defaultMessage, setApikey, setURL, startMessage, telegramSendMessage, startNewBotChat } from "@/utils/telegram/functions";
 import { CatchErrorProps } from "@/types/tlg";
 import { NextApiRequest, NextApiResponse } from "next";
 
@@ -12,10 +12,11 @@ const tlg = async (req: NextApiRequest, res: NextApiResponse) => {
   if (hostURL === null) setURL(`https://${req.headers.host}`)
 
   const message: Message.TextMessage = req.body.message
+  const chatId = message.chat.id
 
   try {
-    if (!message || !message.text) {
-      throw errors.TELEGRAM_QUERY('It seems you are trying to send something beside text')
+    if (!message.text) {
+      throw errors.TELEGRAM_QUERY('It seems you are trying to send something besides text')
     }
 
     const { text } = message;
@@ -25,10 +26,13 @@ const tlg = async (req: NextApiRequest, res: NextApiResponse) => {
         await startMessage(message)
         break;
       case '/help':
-        await helpMessage(message)
+        await helpMessage(chatId)
         break;
       case '/apikey':
-        await setApikey(message.chat.id)
+        await setApikey(chatId)
+        break;
+      case '/new':
+        await startNewBotChat(chatId)
         break;
       default:
         await defaultMessage(message)
@@ -41,10 +45,10 @@ const tlg = async (req: NextApiRequest, res: NextApiResponse) => {
 
     // check for type of error like if in QueryData.ErrorType
     if ('error' in typedError) {
-      await telegramSendMessage(message.chat.id, typedError.data)
+      await telegramSendMessage(chatId, typedError.data)
     } else {
       const errorMessage = `Oops..Something went wrong.%0ATry again later%0AThe cause: ${typedError}`
-      await telegramSendMessage(message.chat.id, errorMessage)
+      await telegramSendMessage(chatId, errorMessage)
     }
   }
   finally {

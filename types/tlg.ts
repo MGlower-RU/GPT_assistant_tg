@@ -44,7 +44,7 @@ export namespace QueryData {
   /**
    * Import type identificator you want to be chosen from like: { error: 'errorVariant' }
    */
-  export type QueryResponse<T> = Awaited<Promise<Extract<QueryData.ErrorUnion, T> | string>>
+  export type QueryResponse<T> = Awaited<Promise<Extract<QueryData.Data, T> | string>>
 
   export type InferQueryType<T> = (T extends CollectionTypes.OPENAI_API_KEY ? ApikeyQuery | null : T extends CollectionTypes.MESSAGES ? MessagesQuery | null : never) | null
 }
@@ -64,10 +64,11 @@ export enum RequestType {
 
 export enum MessageAction {
   INITIALIZE = 'initialize',
-  APIKEY = 'apikey',
+  APIKEY_INPUT = 'apikey_input',
   MODE_NAME = 'mode_name',
   MODE_PROMPT = 'mode_prompt',
-  BOT_PROMPT = 'bot_prompt'
+  BOT_PROMPT = 'bot_prompt',
+  NEW_BOT_CHAT = 'new_bot_chat',
 }
 
 // maybe remove it
@@ -80,6 +81,17 @@ export type RequestUpdateMessages = {
   action: MessageAction.BOT_PROMPT
   chatId: string
   messages: QueryData.MessagesQuery
+}
+
+export type RequestStartNewChat = {
+  action: MessageAction.NEW_BOT_CHAT
+  chatId: string
+}
+
+export type RequestUpdateApiKey = {
+  action: MessageAction.APIKEY_INPUT
+  chatId: string
+  apiKey: QueryData.ApikeyQuery
 }
 
 // export type RequestUpdateApikey = {
@@ -97,6 +109,8 @@ export type RequestUpdateMessages = {
 export type RequestFirebaseApi = { chatId: string } & (
   | RequestInitializeUser
   | RequestUpdateMessages
+  | RequestUpdateApiKey
+  | RequestStartNewChat
 )
 // export type RequestFirebaseApi = RequestInitializeUser | RequestUpdateMessages | RequestUpdateApikey | RequesUpdateMessageStatus
 

@@ -1,4 +1,4 @@
-import { CollectionTypes, MessageAction, QueryData } from "@/types/tlg"
+import { MessageAction, QueryData } from "@/types/tlg"
 import { ChatCompletionRequestMessageRoleEnum, Configuration, OpenAIApi } from "openai"
 import { BotCommand, Message } from "typegram"
 import { errors } from "./errors"
@@ -19,6 +19,8 @@ const commandsString = commands.reduce((acc, { command, description }) => {
     `
 }, '')
 
+console.log('updated');
+
 const usersMessagesAction = new Map<number, MessageAction>()
 
 export let hostURL: string | null = null
@@ -29,7 +31,6 @@ export const USER_MESSAGES_MAX_LENGTH = 30
 
 export async function startMessage(message: Message.TextMessage) {
   const chatId = message.chat.id
-
   // initialize only modes and history
   const result: QueryData.QueryResponse<{ error: QueryData.ErrorType.OTHER }> = await fetch(`${hostURL}/api/firebase`, {
     method: 'POST',
@@ -46,7 +47,7 @@ export async function startMessage(message: Message.TextMessage) {
     throw result
   }
 
-  usersMessagesAction.set(chatId, usersMessagesAction.get(chatId) ?? MessageAction.BOT_PROMPT)
+  setUserAction(chatId, MessageAction.BOT_PROMPT)
 
   const response = `
     Welcome to <i>AI assistant bot</i>, ${message.from?.first_name}
@@ -56,18 +57,43 @@ export async function startMessage(message: Message.TextMessage) {
   await telegramSendMessage(chatId, response)
 }
 
-export async function helpMessage(message: Message.TextMessage) {
+export async function helpMessage(chatId: number) {
   const response = 'Help for <i>AI assistant bot</i>.%0AUse /start <i>keyword</i> to get greeting message.';
   // create an issue on GitHub if you found an error
-  await telegramSendMessage(message.chat.id, response)
+  await telegramSendMessage(chatId, response)
 }
 
-export async function setApikey(chatId: number) {
-  const result: QueryData.QueryResponse<{ error: QueryData.ErrorType.OTHER }> = await fetch(`${hostURL}/api/firebase`, {
+export async function setApikey(chatId: number, apiKey?: string) {
+  if (getUserAction(chatId) === MessageAction.APIKEY_INPUT && apiKey) {
+    const result: QueryData.QueryResponse<{ error: QueryData.ErrorType.OTHER }> = await fetch(`${hostURL}/api/firebase`, {
+      method: 'POST',
+      body: JSON.stringify({
+        action: MessageAction.APIKEY_INPUT,
+        chatId,
+        apiKey
+      }),
+      headers: {
+        "firebase-query": "firebaseQueryHeader"
+      }
+    }).then(res => res.json())
+
+    if (typeof result !== 'string') {
+      throw result
+    }
+
+    await telegramSendMessage(chatId, result)
+    setUserAction(chatId, MessageAction.BOT_PROMPT)
+  } else {
+    await telegramSendMessage(chatId, '🔑 Please, input your apiKey:')
+    setUserAction(chatId, MessageAction.APIKEY_INPUT)
+  }
+}
+
+export async function startNewBotChat(chatId: number) {
+  const result: QueryData.QueryResponse<QueryData.ErrorUnion> = await fetch(`${hostURL}/api/firebase`, {
     method: 'POST',
     body: JSON.stringify({
-      type: CollectionTypes.MESSAGE_TYPES,
-      status: MessageAction.APIKEY,
+      action: MessageAction.NEW_BOT_CHAT,
       chatId
     }),
     headers: {
@@ -78,17 +104,24 @@ export async function setApikey(chatId: number) {
   if (typeof result !== 'string') {
     throw result
   }
+  setUserAction(chatId, MessageAction.BOT_PROMPT)
+  await telegramSendMessage(chatId, 'How can I help you today?')
 }
 
 export async function defaultMessage(message: Message.TextMessage) {
   const { chat: { id }, text } = message
-  const actionType = usersMessagesAction.get(id)
+  let actionType = getUserAction(id)
 
-  if (!actionType) usersMessagesAction.set(id, MessageAction.BOT_PROMPT)
+  if (!actionType) {
+    setUserAction(id, MessageAction.BOT_PROMPT)
+    actionType = MessageAction.BOT_PROMPT
+  }
 
   // change to switch if possible
-  if (usersMessagesAction.get(id) === MessageAction.BOT_PROMPT) {
+  if (actionType === MessageAction.BOT_PROMPT) {
     await getBotPrompt(id, text)
+  } else if (actionType === MessageAction.APIKEY_INPUT) {
+    await setApikey(id, text)
   }
 }
 
@@ -98,13 +131,13 @@ export async function defaultMessage(message: Message.TextMessage) {
  * @param content a prompt you want to pass to the bot
  */
 export const getBotPrompt = async (chatId: number, content: string) => {
-  const firebase = await fetch(`${hostURL}/api/firebase?chatId=${chatId}`, {
+  const firebase: Exclude<QueryData.QueryResponse<QueryData.Data>, string> = await fetch(`${hostURL}/api/firebase?chatId=${chatId}`, {
     method: 'GET',
     headers: {
       "firebase-query": "firebaseQueryHeader"
     }
-  })
-  const fbData: QueryData.Data = await firebase.json()
+  }).then(res => res.json())
+  const fbData = firebase
 
   if ('error' in fbData) {
     throw fbData
@@ -164,11 +197,19 @@ export const getBotPrompt = async (chatId: number, content: string) => {
 export const setURL = (url: string): void => { hostURL = url }
 
 /**
- * Function accepts telegram chat id and returns current user's message type
+ * Function accepts telegram chat id and returns current user's message action
  * @param chatId telegram chat id
  * @returns user's message type
  */
-export const getUserStatus = (chatId: number): MessageAction => usersMessagesAction.get(chatId)!
+export const getUserAction = (chatId: number): MessageAction => usersMessagesAction.get(chatId)!
+
+/**
+ * Function accepts telegram chat id and returns current user's message action
+ * @param chatId telegram chat id
+ */
+export const setUserAction = (chatId: number, action: MessageAction): void => {
+  usersMessagesAction.set(chatId, action)
+}
 
 /**
  * 

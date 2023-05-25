@@ -1,7 +1,7 @@
 import { NextApiRequest, NextApiResponse } from "next"
 
 import { initializeApp } from "firebase/app";
-import { getUserData, initializeUserDoc, updateMessages } from "@/firebase/functions";
+import { getUserData, initializeUserDoc, updateApiKey, updateMessages } from "@/firebase/functions";
 import { getFirestore } from "firebase/firestore";
 import { CatchErrorProps, MessageAction, QueryData, RequestFirebaseApi } from "@/types/tlg";
 import { errors } from "@/utils/telegram/errors";
@@ -41,16 +41,25 @@ const firebase = async (req: NextApiRequest, res: NextApiResponse<QueryData.Data
     } else if (req.method === 'POST') {
       console.log('POST something')
 
+      let responseJSON: any = null
       const data: RequestFirebaseApi = JSON.parse(req.body)
-      const { action, chatId } = data
 
-      // maybe access statuses directly
+      const { action } = data
+      const chatId = +data.chatId
+
+      // maybe access statuses directly like import { userActions } from 'tg/functions' --> check if current action
       if (action === MessageAction.INITIALIZE) {
-        await initializeUserDoc(db, +chatId)
-        return res.status(200).json('User initialized')
+        await initializeUserDoc(db, chatId)
+        responseJSON = 'User initialized'
       } else if (action === MessageAction.BOT_PROMPT) {
-        await updateMessages(db, +chatId, data.messages)
-        return res.status(200).json('Messages updated')
+        await updateMessages(db, chatId, data.messages)
+        responseJSON = 'Messages updated'
+      } else if (action === MessageAction.NEW_BOT_CHAT) {
+        await updateMessages(db, chatId, [])
+        responseJSON = 'New chat has been started'
+      } else if (action === MessageAction.APIKEY_INPUT) {
+        await updateApiKey(db, chatId, data.apiKey)
+        responseJSON = 'ApiKey successfully updated'
       }
       // else if (type === CollectionTypes.MESSAGES) {
       //   const { messages } = data
@@ -75,6 +84,7 @@ const firebase = async (req: NextApiRequest, res: NextApiResponse<QueryData.Data
       else {
         throw errors.OTHER()
       }
+      return res.status(200).json(responseJSON)
     } else {
       throw errors.OTHER()
     }
