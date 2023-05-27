@@ -17,7 +17,7 @@ export const getDocumentData = async (db: Firestore, path: string): Promise<Docu
 
     return query
   } catch (error) {
-    throw new Error("Couldn't get documentData")
+    throw new Error("Couldn't get document data")
   }
 }
 
@@ -61,7 +61,7 @@ export const updateDocumentData = async (db: Firestore, path: string, data: Part
  * @param messages Input array of messages
  */
 export const updateMessages = async (db: Firestore, chatId: number, messages: QueryData.MessagesQuery): Promise<void> => {
-  const updatedMessages = messages.length >= USER_MESSAGES_MAX_LENGTH ? [] : messages
+  const updatedMessages = messages.length >= USER_MESSAGES_MAX_LENGTH * 2 ? [] : messages
   await updateDocumentData(db, `${CollectionTypes.USERS}/${chatId}`, { messages: updatedMessages })
 }
 

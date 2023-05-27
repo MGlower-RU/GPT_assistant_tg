@@ -26,7 +26,7 @@ const tlg = async (req: NextApiRequest, res: NextApiResponse) => {
         await startMessage(message)
         break;
       case '/help':
-        await helpMessage(chatId)
+        await helpMessage(chatId, message.from?.first_name)
         break;
       case '/apikey':
         await setApikey(chatId)

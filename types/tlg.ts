@@ -3,7 +3,7 @@ import { ChatCompletionRequestMessage } from "openai"
 export namespace QueryData {
   export type MessagesQuery = ChatCompletionRequestMessage[]
 
-  export type ApikeyQuery = string | null
+  export type ApikeyQuery = string
 
   export type UserDataQuery = {
     apiKey: ApikeyQuery
