@@ -64,6 +64,7 @@ export enum RequestType {
 
 export enum MessageAction {
   INITIALIZE = 'initialize',
+  LOADING = "loading",
   APIKEY_INPUT = 'apikey_input',
   MODE_NAME = 'mode_name',
   MODE_PROMPT = 'mode_prompt',

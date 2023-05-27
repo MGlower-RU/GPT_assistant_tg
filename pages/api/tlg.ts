@@ -21,6 +21,7 @@ const tlg = async (req: NextApiRequest, res: NextApiResponse) => {
 
     const { text } = message;
 
+    // if status loading --> return res.status(200).json('loading')
     switch (text) {
       case '/start':
         await startMessage(message)
