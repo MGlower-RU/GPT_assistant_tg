@@ -32,9 +32,7 @@ export const USER_MESSAGES_MAX_LENGTH = 30
 export async function startMessage(message: Message.TextMessage) {
   const chatId = message.chat.id
 
-  const load = await sendLoadingContent(chatId, "set")
-  console.log(load)
-
+  const loadingId = await sendLoadingContent(chatId, "set")
 
   // initialize only modes and history
   const result: QueryData.QueryResponse<{ error: QueryData.ErrorType.OTHER }> = await fetch(`${hostURL}/api/firebase`, {
@@ -60,6 +58,7 @@ export async function startMessage(message: Message.TextMessage) {
     %0A<b>List of available commands:</b> ${commandsString}
   `
   await telegramSendMessage(chatId, response)
+  await sendLoadingContent(chatId, "remove", loadingId)
 }
 
 export async function helpMessage(chatId: number, name?: string) {
@@ -87,7 +86,7 @@ export async function helpMessage(chatId: number, name?: string) {
     %0A<b>Found a problem?</b>
     %0ACreate an issue on GitHub repository of the project <a href="https://github.com/MGlower-RU/GPT_assistant_tg/issues">Link</a>
   `;
-  await telegramSendMessage(chatId, response)
+  await telegramSendMessage(chatId, response, { "parse_mode": "HTML", "disable_web_page_preview": true })
 }
 
 // Что такое токены ?
@@ -263,19 +262,25 @@ export const encodeURIOptions = (options: { [K: string]: any }): ReturnType<type
   return objectKeys.map(([k, v]) => `${k}=${encodeURIComponent(typeof v === 'object' ? JSON.stringify(v) : v)}`).join("&")
 }
 
+type LoadingActions = "set" | "remove"
+type LoadingReturnType<T> = T extends "set" ? number : T extends "remove" ? string : any
+
+// make function overloads
 /**
  * 
  * @param chatId telegram chat id
  * @param action "set" - to send a loading message or "remove" - to remove it from chat
  */
-export const sendLoadingContent = async <T extends "set" | "remove">(chatId: number, action: T): Promise<T extends "set" ? number : string> => {
+export const sendLoadingContent = async <T extends LoadingActions>(chatId: number, action: T, messageId?: number): Promise<LoadingReturnType<T>> => {
   if (action === "set") {
     // setUserAction(chatId, MessageAction.LOADING)
     const msg = await telegramSendMessage(chatId, "🍥Wait a moment, please...")
-    console.log("Chat id: ", msg.message_id)
 
     return msg.message_id as any
   } else if (action === "remove") {
+    const res = await telegramDeleteMessage(chatId, messageId!)
+    console.log(res)
+
     setUserAction(chatId, MessageAction.BOT_PROMPT)
     return "ok" as any
   } else {
@@ -298,6 +303,24 @@ export const telegramSendMessage = async (chatId: number, message: string, optio
   )
     .then(res => res.json())
     .then(data => data.result)
+    .catch(err => {
+      throw errors.TELEGRAM_QUERY(`Couldn't send telegram message%0AReason: ${err}`)
+    });
+
+  return messageData
+}
+
+/**
+ * 
+ * @param chatId chat id from telegram request.
+ * @param message Input your text you want to be send by bot here.
+ * @param options Extend your message with additional parameters. By default: { "parse_mode": "HTML" }
+ */
+export const telegramDeleteMessage = async (chatId: number, messageId: number): Promise<boolean> => {
+  const messageData = await fetch(
+    `https://api.telegram.org/bot${process.env.NEXT_TELEGRAM_TOKEN}/deleteMessage?chat_id=${chatId}&message_id=${messageId}`
+  )
+    .then(res => res.json())
     .catch(err => {
       throw errors.TELEGRAM_QUERY(`Couldn't send telegram message%0AReason: ${err}`)
     });
