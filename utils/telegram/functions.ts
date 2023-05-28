@@ -25,7 +25,7 @@ const usersDataMessages = new Map<number, UserMessageData>()
 
 export let hostURL: string | null = null
 
-export const USER_MESSAGES_MAX_LENGTH = 2
+export const USER_MESSAGES_MAX_LENGTH = 20
 
 // TELEGRAM COMMANDS FUNCTIONS
 
@@ -84,7 +84,24 @@ export async function helpMessage(chatId: number, name?: string) {
     %0ACreate an issue on GitHub repository of the project <a href="https://github.com/MGlower-RU/GPT_assistant_tg/issues">Link</a>
   `;
 
-  await telegramSendMessage(chatId, response, { "parse_mode": "HTML", "disable_web_page_preview": true })
+  const options = {
+    parse_mode: "HTML",
+    disable_web_page_preview: true,
+    reply_markup: {
+      inline_keyboard: [[
+        {
+          text: 'Contact me',
+          url: 'https://t.me/MGlower'
+        },
+        {
+          text: 'My GitHub',
+          url: 'https://github.com/MGlower-RU',
+        },
+      ]],
+    }
+  }
+
+  await telegramSendMessage(chatId, response, options)
   setUserMessageData(chatId, { action: MessageAction.BOT_PROMPT })
 }
 
