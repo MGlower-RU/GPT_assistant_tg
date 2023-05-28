@@ -1,4 +1,4 @@
-import { MessageAction, QueryData } from "@/types/tlg"
+import { MessageAction, QueryData, UserMessageData } from "@/types/tlg"
 import { ChatCompletionRequestMessageRoleEnum, Configuration, OpenAIApi } from "openai"
 import { BotCommand, Message } from "typegram"
 import { errors } from "./errors"
@@ -21,18 +21,16 @@ const commandsString = commands.reduce((acc, { command, description }) => {
 
 console.log('updated');
 
-const usersMessagesAction = new Map<number, MessageAction>()
+const usersDataMessages = new Map<number, UserMessageData>()
 
 export let hostURL: string | null = null
 
-export const USER_MESSAGES_MAX_LENGTH = 30
+export const USER_MESSAGES_MAX_LENGTH = 2
 
 // TELEGRAM COMMANDS FUNCTIONS
 
 export async function startMessage(message: Message.TextMessage) {
   const chatId = message.chat.id
-
-  const loadingId = await sendLoadingContent(chatId, "set")
 
   // initialize only modes and history
   const result: QueryData.QueryResponse<{ error: QueryData.ErrorType.OTHER }> = await fetch(`${hostURL}/api/firebase`, {
@@ -50,15 +48,14 @@ export async function startMessage(message: Message.TextMessage) {
     throw result
   }
 
-  setUserAction(chatId, MessageAction.BOT_PROMPT)
-
   const response = `
-    Welcome to <i>AI assistant bot</i>, ${message.from?.first_name}
-    %0A
-    %0A<b>List of available commands:</b> ${commandsString}
+  Welcome to <i>AI assistant bot</i>, ${message.from?.first_name}
+  %0A
+  %0A<b>List of available commands:</b> ${commandsString}
   `
+
   await telegramSendMessage(chatId, response)
-  await sendLoadingContent(chatId, "remove", loadingId)
+  setUserMessageData(chatId, { action: MessageAction.BOT_PROMPT })
 }
 
 export async function helpMessage(chatId: number, name?: string) {
@@ -86,7 +83,9 @@ export async function helpMessage(chatId: number, name?: string) {
     %0A<b>Found a problem?</b>
     %0ACreate an issue on GitHub repository of the project <a href="https://github.com/MGlower-RU/GPT_assistant_tg/issues">Link</a>
   `;
+
   await telegramSendMessage(chatId, response, { "parse_mode": "HTML", "disable_web_page_preview": true })
+  setUserMessageData(chatId, { action: MessageAction.BOT_PROMPT })
 }
 
 // Что такое токены ?
@@ -110,7 +109,8 @@ export async function helpMessage(chatId: number, name?: string) {
 // - Midjorney v5.1 — 25 запросов в день.
 
 export async function setApikey(chatId: number, apiKey?: string) {
-  if (getUserAction(chatId) === MessageAction.APIKEY_INPUT && apiKey) {
+  const actionType = getUserMessageData(chatId).action
+  if (actionType === MessageAction.APIKEY_INPUT && apiKey) {
     const result: QueryData.QueryResponse<{ error: QueryData.ErrorType.OTHER }> = await fetch(`${hostURL}/api/firebase`, {
       method: 'POST',
       body: JSON.stringify({
@@ -128,14 +128,14 @@ export async function setApikey(chatId: number, apiKey?: string) {
     }
 
     await telegramSendMessage(chatId, result)
-    setUserAction(chatId, MessageAction.BOT_PROMPT)
+    setUserMessageData(chatId, { action: MessageAction.BOT_PROMPT })
   } else {
     await telegramSendMessage(chatId, '🔑 Please, input your apiKey:')
-    setUserAction(chatId, MessageAction.APIKEY_INPUT)
+    setUserMessageData(chatId, { action: MessageAction.APIKEY_INPUT })
   }
 }
 
-export async function startNewBotChat(chatId: number) {
+export async function startNewBotChat(chatId: number, message?: string) {
   const result: QueryData.QueryResponse<QueryData.ErrorUnion> = await fetch(`${hostURL}/api/firebase`, {
     method: 'POST',
     body: JSON.stringify({
@@ -150,18 +150,14 @@ export async function startNewBotChat(chatId: number) {
   if (typeof result !== 'string') {
     throw result
   }
-  setUserAction(chatId, MessageAction.BOT_PROMPT)
-  await telegramSendMessage(chatId, 'How can I help you today?')
+
+  await telegramSendMessage(chatId, message ?? 'How can I help you today?')
+  setUserMessageData(chatId, { action: MessageAction.BOT_PROMPT })
 }
 
 export async function defaultMessage(message: Message.TextMessage) {
   const { chat: { id }, text } = message
-  let actionType = getUserAction(id)
-
-  if (!actionType) {
-    setUserAction(id, MessageAction.BOT_PROMPT)
-    actionType = MessageAction.BOT_PROMPT
-  }
+  let actionType = getUserMessageData(id).action
 
   // change to switch if possible
   if (actionType === MessageAction.BOT_PROMPT) {
@@ -214,17 +210,29 @@ export const getBotPrompt = async (chatId: number, content: string) => {
 
     messages.push({ role: botResponse.role, content: botResponse?.content ?? '' })
 
-    await fetch(`${hostURL}/api/firebase`, {
-      method: 'POST',
-      body: JSON.stringify({
-        action: MessageAction.BOT_PROMPT,
-        messages,
-        chatId
-      }),
-      headers: {
-        "firebase-query": "firebaseQueryHeader"
-      }
-    })
+    if (messages.length >= USER_MESSAGES_MAX_LENGTH * 2) {
+      await new Promise(resolve => setTimeout(() => {
+        resolve('')
+      }, 1000))
+
+      await startNewBotChat(chatId, `
+        ${'-'.repeat(100)}
+        %0ANew conversation has started.
+        %0APrevious conversation context was cleared
+      `)
+    } else {
+      await fetch(`${hostURL}/api/firebase`, {
+        method: 'POST',
+        body: JSON.stringify({
+          action: MessageAction.BOT_PROMPT,
+          messages,
+          chatId
+        }),
+        headers: {
+          "firebase-query": "firebaseQueryHeader"
+        }
+      })
+    }
   }
 }
 
@@ -242,14 +250,17 @@ export const setURL = (url: string): void => { hostURL = url }
  * @param chatId telegram chat id
  * @returns user's message type
  */
-export const getUserAction = (chatId: number): MessageAction => usersMessagesAction.get(chatId)!
+export const getUserMessageData = (chatId: number): UserMessageData => usersDataMessages.get(chatId)!
 
 /**
- * Function accepts telegram chat id and returns current user's message action
+ * Function accepts telegram chat id and sets current user's message data
  * @param chatId telegram chat id
+ * @returns updated user's message data
  */
-export const setUserAction = (chatId: number, action: MessageAction): void => {
-  usersMessagesAction.set(chatId, action)
+export const setUserMessageData = (chatId: number, data: Partial<UserMessageData>): UserMessageData => {
+  const newData = { ...(getUserMessageData(chatId) ?? {}), ...data }
+  usersDataMessages.set(chatId, newData)
+  return newData
 }
 
 /**
@@ -273,18 +284,17 @@ type LoadingReturnType<T> = T extends "set" ? number : T extends "remove" ? stri
  */
 export const sendLoadingContent = async <T extends LoadingActions>(chatId: number, action: T, messageId?: number): Promise<LoadingReturnType<T>> => {
   if (action === "set") {
-    // setUserAction(chatId, MessageAction.LOADING)
+    setUserMessageData(chatId, { loading: true })
     const msg = await telegramSendMessage(chatId, "🍥Wait a moment, please...")
 
     return msg.message_id as any
   } else if (action === "remove") {
-    const res = await telegramDeleteMessage(chatId, messageId!)
-    console.log(res)
+    await telegramDeleteMessage(chatId, messageId!)
 
-    setUserAction(chatId, MessageAction.BOT_PROMPT)
+    setUserMessageData(chatId, { loading: false })
     return "ok" as any
   } else {
-    setUserAction(chatId, MessageAction.BOT_PROMPT)
+    setUserMessageData(chatId, { action: MessageAction.BOT_PROMPT })
     throw errors.OTHER()
   }
 }
@@ -306,7 +316,6 @@ export const telegramSendMessage = async (chatId: number, message: string, optio
     .catch(err => {
       throw errors.TELEGRAM_QUERY(`Couldn't send telegram message%0AReason: ${err}`)
     });
-
   return messageData
 }
 

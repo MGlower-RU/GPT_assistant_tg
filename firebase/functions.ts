@@ -1,6 +1,6 @@
 import { CollectionTypes, QueryData } from "@/types/tlg";
 import { errors } from "@/utils/telegram/errors";
-import { USER_MESSAGES_MAX_LENGTH } from "@/utils/telegram/functions";
+import { USER_MESSAGES_MAX_LENGTH, telegramSendMessage } from "@/utils/telegram/functions";
 import { DocumentData, DocumentSnapshot, Firestore, Query, doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
 
 // RETRIEVE DATA
@@ -21,6 +21,12 @@ export const getDocumentData = async (db: Firestore, path: string): Promise<Docu
   }
 }
 
+/**
+ * 
+ * @param db 
+ * @param chatId 
+ * @returns 
+ */
 export const getUserData = async (db: Firestore, chatId: number): Promise<QueryData.UserDataQuery> => {
   const userData = await getDocumentData(db, `${CollectionTypes.USERS}/${chatId}`)
 
@@ -61,8 +67,7 @@ export const updateDocumentData = async (db: Firestore, path: string, data: Part
  * @param messages Input array of messages
  */
 export const updateMessages = async (db: Firestore, chatId: number, messages: QueryData.MessagesQuery): Promise<void> => {
-  const updatedMessages = messages.length >= USER_MESSAGES_MAX_LENGTH * 2 ? [] : messages
-  await updateDocumentData(db, `${CollectionTypes.USERS}/${chatId}`, { messages: updatedMessages })
+  await updateDocumentData(db, `${CollectionTypes.USERS}/${chatId}`, { messages })
 }
 
 /**

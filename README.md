@@ -13,6 +13,6 @@ Hook setup: https://api.telegram.org/bot<YOUR_CHAT_TOKEN>/setWebhook?url=<YOUR_H
 ## Today
 
 - sendMessage with Inline Markup option
-- write comprehensive text content of the /help command (i.e. contact info, commands list, bot description)
 - set userActions in functions
-- optional query settings for telegramSendMessage function
+- maybe wrap tlg switch in loading function ?
+- delete and send message in one function ?

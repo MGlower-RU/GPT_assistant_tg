@@ -1,5 +1,5 @@
-import { helpMessage, hostURL, defaultMessage, setApikey, setURL, startMessage, telegramSendMessage, startNewBotChat } from "@/utils/telegram/functions";
-import { CatchErrorProps } from "@/types/tlg";
+import { helpMessage, hostURL, defaultMessage, setApikey, setURL, startMessage, telegramSendMessage, startNewBotChat, getUserMessageData, setUserMessageData, sendLoadingContent } from "@/utils/telegram/functions";
+import { CatchErrorProps, MessageAction } from "@/types/tlg";
 import { NextApiRequest, NextApiResponse } from "next";
 
 import type { Message } from 'typegram'
@@ -13,15 +13,21 @@ const tlg = async (req: NextApiRequest, res: NextApiResponse) => {
 
   const message: Message.TextMessage = req.body.message
   const chatId = message.chat.id
+  let userAction = getUserMessageData(chatId)
+
+  if (!userAction) {
+    userAction = setUserMessageData(chatId, { action: MessageAction.INITIALIZE, loading: false })
+  }
+
+  const messageId = await sendLoadingContent(chatId, "set")
 
   try {
-    if (!message.text) {
+    if (!message || !message.text) {
       throw errors.TELEGRAM_QUERY('It seems you are trying to send something besides text')
     }
 
     const { text } = message;
 
-    // if status loading --> return res.status(200).json('loading')
     switch (text) {
       case '/start':
         await startMessage(message)
@@ -39,20 +45,26 @@ const tlg = async (req: NextApiRequest, res: NextApiResponse) => {
         await defaultMessage(message)
         break;
     }
+
+    // if somehow User wasn't initialized call startMessage again
+    if (userAction.action === MessageAction.INITIALIZE && getUserMessageData(chatId).action === MessageAction.INITIALIZE) {
+      await startMessage(message)
+    }
   }
   catch (error) {
     console.log('error in tlg')
     const typedError = error as CatchErrorProps
 
-    // check for type of error like if in QueryData.ErrorType
     if ('error' in typedError) {
       await telegramSendMessage(chatId, typedError.data)
     } else {
       const errorMessage = `Oops..Something went wrong.%0ATry again later%0AThe cause: ${typedError}`
       await telegramSendMessage(chatId, errorMessage)
     }
+    setUserMessageData(chatId, { action: MessageAction.BOT_PROMPT })
   }
   finally {
+    await sendLoadingContent(chatId, "remove", messageId)
     res.status(200).json('ok')
   }
 }

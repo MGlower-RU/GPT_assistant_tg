@@ -64,12 +64,16 @@ export enum RequestType {
 
 export enum MessageAction {
   INITIALIZE = 'initialize',
-  LOADING = "loading",
   APIKEY_INPUT = 'apikey_input',
   MODE_NAME = 'mode_name',
   MODE_PROMPT = 'mode_prompt',
   BOT_PROMPT = 'bot_prompt',
   NEW_BOT_CHAT = 'new_bot_chat',
+}
+
+export type UserMessageData = {
+  action: MessageAction
+  loading: boolean
 }
 
 // maybe remove it
