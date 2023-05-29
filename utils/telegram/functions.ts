@@ -2,6 +2,7 @@ import { MessageAction, QueryData, UserMessageData } from "@/types/tlg"
 import { ChatCompletionRequestMessageRoleEnum, Configuration, OpenAIApi } from "openai"
 import { BotCommand, Message } from "typegram"
 import { errors } from "./errors"
+import { MessageOptions } from "child_process"
 
 const commands: BotCommand[] = [
   { command: "😣 /help", description: 'get information of how this bot works' },
@@ -60,7 +61,7 @@ export async function startMessage(message: Message.TextMessage) {
 
 export async function helpMessage(chatId: number, name?: string) {
   const response = `
-    Hello${name ? " " + name : ""}!
+    Hello${name ? ", " + name : ""}!
     %0AThis is an AI Assistant Bot created to answer any of your questions.
     %0A
     %0ATo start using it input your <a href="https://platform.openai.com/account/api-keys">OpenAI apiKey</a> with a command /apiKey
@@ -88,16 +89,24 @@ export async function helpMessage(chatId: number, name?: string) {
     parse_mode: "HTML",
     disable_web_page_preview: true,
     reply_markup: {
-      inline_keyboard: [[
-        {
-          text: 'Contact me',
-          url: 'https://t.me/MGlower'
-        },
-        {
-          text: 'My GitHub',
-          url: 'https://github.com/MGlower-RU',
-        },
-      ]],
+      inline_keyboard: [
+        [
+          {
+            text: '🔑 Input apikey',
+            callback_data: '/apikey'
+          },
+        ],
+        [
+          {
+            text: 'Contact me',
+            url: 'https://t.me/MGlower'
+          },
+          {
+            text: 'My GitHub',
+            url: 'https://github.com/MGlower-RU',
+          },
+        ]
+      ],
     }
   }
 

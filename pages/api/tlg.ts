@@ -2,7 +2,7 @@ import { helpMessage, hostURL, defaultMessage, setApikey, setURL, startMessage, 
 import { CatchErrorProps, MessageAction } from "@/types/tlg";
 import { NextApiRequest, NextApiResponse } from "next";
 
-import type { Message } from 'typegram'
+import type { CallbackQuery, InlineQueryResult, Message } from 'typegram'
 import { errors } from "@/utils/telegram/errors";
 
 const tlg = async (req: NextApiRequest, res: NextApiResponse) => {
@@ -11,8 +11,14 @@ const tlg = async (req: NextApiRequest, res: NextApiResponse) => {
   // return res.status(200).json('ok')
   if (hostURL === null) setURL(`https://${req.headers.host}`)
 
-  const message: Message.TextMessage = req.body.message
-  const chatId = message.chat.id
+  let isReplyQuery = req.body.callback_query ? true : false
+  let message: Message.TextMessage = isReplyQuery ? req.body.callback_query.message : req.body.message
+  let chatId = message.chat.id
+
+  if (isReplyQuery) {
+    message.text = req.body.callback_query.data
+  }
+
   let userAction = getUserMessageData(chatId)
 
   if (!userAction) {
