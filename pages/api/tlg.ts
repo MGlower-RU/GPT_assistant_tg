@@ -6,8 +6,8 @@ import type { CallbackQuery, InlineQueryResult, Message } from 'typegram'
 import { errors } from "@/utils/telegram/errors";
 
 const tlg = async (req: NextApiRequest, res: NextApiResponse) => {
-  // const description = `🤖AI Assistant created to answer any questions you have in mind.`
-  // await fetch(`https://api.telegram.org/bot6229726777:AAHeThWTuqQc-58Wx5nH5Unn_7FP7omF6yQ/setMyDescription?description=${description}`)
+  // const description = `🤖 Your personal AI assistant in Telegram! Get instant help with anything you need, 24/7. Let's chat! 💬`
+  // await fetch(`https://api.telegram.org/bot6229726777:AAHeThWTuqQc-58Wx5nH5Unn_7FP7omF6yQ/setMyShortDescription?short_description=${description}`)
   // return res.status(200).json('ok')
   if (hostURL === null) setURL(`https://${req.headers.host}`)
 
@@ -39,7 +39,7 @@ const tlg = async (req: NextApiRequest, res: NextApiResponse) => {
         await startMessage(message)
         break;
       case '/help':
-        await helpMessage(chatId, message.from?.first_name)
+        await helpMessage(chatId, message.from?.username)
         break;
       case '/apikey':
         await setApikey(chatId)

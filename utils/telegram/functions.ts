@@ -2,7 +2,8 @@ import { MessageAction, QueryData, UserMessageData } from "@/types/tlg"
 import { ChatCompletionRequestMessageRoleEnum, Configuration, OpenAIApi } from "openai"
 import { BotCommand, Message } from "typegram"
 import { errors } from "./errors"
-import { MessageOptions } from "child_process"
+
+const FETCH_SAFETY_HEADER = process.env.NEXT_SAFETY_FETCH_HEADER!
 
 const commands: BotCommand[] = [
   { command: "😣 /help", description: 'get information of how this bot works' },
@@ -30,6 +31,10 @@ export const USER_MESSAGES_MAX_LENGTH = 20
 
 // TELEGRAM COMMANDS FUNCTIONS
 
+/**
+ * Function for /start command. Initializes a user on the first bot launch.
+ * @param message Message object from telegram request.
+ */
 export async function startMessage(message: Message.TextMessage) {
   const chatId = message.chat.id
 
@@ -41,7 +46,7 @@ export async function startMessage(message: Message.TextMessage) {
       chatId
     }),
     headers: {
-      "firebase-query": "firebaseQueryHeader"
+      "firebase-query": FETCH_SAFETY_HEADER
     }
   }).then(res => res.json())
 
@@ -59,6 +64,11 @@ export async function startMessage(message: Message.TextMessage) {
   setUserMessageData(chatId, { action: MessageAction.BOT_PROMPT })
 }
 
+/**
+ * Function for /help command. Displays all the neccessary information about Bot.
+ * @param chatId id of a chat
+ * @param name optinal. User's name to be displayed.
+ */
 export async function helpMessage(chatId: number, name?: string) {
   const response = `
     Hello${name ? ", " + name : ""}!
@@ -114,26 +124,11 @@ export async function helpMessage(chatId: number, name?: string) {
   setUserMessageData(chatId, { action: MessageAction.BOT_PROMPT })
 }
 
-// Что такое токены ?
-//   Для обработки и генерации текста используются ресурсы, которые  исчисляются в токенах. 
-
-// - 1 токен ~= 4 символа на английском языке
-//   - 1 токен ~= 1 символ на других языках
-
-// Мы предоставляем 50, 000 токенов бесплатно.Они обновляются каждую неделю.Чтобы использовать бота без ограничений, вы можете приобрести подписку по команде / pay
-
-//     Лимиты
-// Чтобы поддерживать стабильную работу без перегрузок, мы должны использовать лимиты на генерацию.Сейчас лимиты такие:
-
-// Бесплатно:
-// - GPT - 3.5 — 50.000 токенов в неделю;
-// - Midjorney v5.1 — 5 запросов в неделю.
-
-// В подписке Plus:
-// - GPT - 3.5 — безлимитно;
-// - GPT - 4 — 25 запросов в день;
-// - Midjorney v5.1 — 25 запросов в день.
-
+/**
+ * Function to set/update apikey for bot
+ * @param chatId id of a chat
+ * @param apiKey updated apikey
+ */
 export async function setApikey(chatId: number, apiKey?: string) {
   const actionType = getUserMessageData(chatId).action
   if (actionType === MessageAction.APIKEY_INPUT && apiKey) {
@@ -145,7 +140,7 @@ export async function setApikey(chatId: number, apiKey?: string) {
         apiKey
       }),
       headers: {
-        "firebase-query": "firebaseQueryHeader"
+        "firebase-query": FETCH_SAFETY_HEADER
       }
     }).then(res => res.json())
 
@@ -161,6 +156,11 @@ export async function setApikey(chatId: number, apiKey?: string) {
   }
 }
 
+/**
+ * Function to start a new conversation with a bot
+ * @param chatId id of a chat
+ * @param message optional. Message to be displayed as a greeting for new chat.
+ */
 export async function startNewBotChat(chatId: number, message?: string) {
   const result: QueryData.QueryResponse<QueryData.ErrorUnion> = await fetch(`${hostURL}/api/firebase`, {
     method: 'POST',
@@ -169,7 +169,7 @@ export async function startNewBotChat(chatId: number, message?: string) {
       chatId
     }),
     headers: {
-      "firebase-query": "firebaseQueryHeader"
+      "firebase-query": FETCH_SAFETY_HEADER
     }
   }).then(res => res.json())
 
@@ -196,13 +196,13 @@ export async function defaultMessage(message: Message.TextMessage) {
 /**
  * Function to get an answer on prompt from GPT-bot
  * @param chatId id of your telegram chat
- * @param content a prompt you want to pass to the bot
+ * @param content prompt you want to pass to the bot
  */
 export const getBotPrompt = async (chatId: number, content: string) => {
   const fbData: Exclude<QueryData.QueryResponse<QueryData.Data>, string> = await fetch(`${hostURL}/api/firebase?chatId=${chatId}`, {
     method: 'GET',
     headers: {
-      "firebase-query": "firebaseQueryHeader"
+      "firebase-query": FETCH_SAFETY_HEADER
     }
   }).then(res => res.json())
 
@@ -255,7 +255,7 @@ export const getBotPrompt = async (chatId: number, content: string) => {
           chatId
         }),
         headers: {
-          "firebase-query": "firebaseQueryHeader"
+          "firebase-query": FETCH_SAFETY_HEADER
         }
       })
     }
@@ -266,7 +266,7 @@ export const getBotPrompt = async (chatId: number, content: string) => {
 // Utils
 
 /**
- * 
+ * Function to set a current host URL
  * @param url Input your site hostURL
  */
 export const setURL = (url: string): void => { hostURL = url }
@@ -281,6 +281,7 @@ export const getUserMessageData = (chatId: number): UserMessageData => usersData
 /**
  * Function accepts telegram chat id and sets current user's message data
  * @param chatId telegram chat id
+ * @param data data object of the data to be updated.
  * @returns updated user's message data
  */
 export const setUserMessageData = (chatId: number, data: Partial<UserMessageData>): UserMessageData => {
@@ -290,9 +291,9 @@ export const setUserMessageData = (chatId: number, data: Partial<UserMessageData
 }
 
 /**
- * Encodes your options object into valid query string
- * @param options Your options object
- * @returns Encoded query string
+ * Encodes your options object into valid query string.
+ * @param options your options object.
+ * @returns encoded query string.
  */
 export const encodeURIOptions = (options: { [K: string]: any }): ReturnType<typeof encodeURIComponent> => {
   const objectKeys = Object.entries(options)
@@ -305,8 +306,8 @@ type LoadingReturnType<T> = T extends "set" ? number : T extends "remove" ? stri
 // make function overloads
 /**
  * 
- * @param chatId telegram chat id
- * @param action "set" - to send a loading message or "remove" - to remove it from chat
+ * @param chatId telegram chat id.
+ * @param action "set" - to send a loading message or "remove" - to remove it from chat.
  */
 export const sendLoadingContent = async <T extends LoadingActions>(chatId: number, action: T, messageId?: number): Promise<LoadingReturnType<T>> => {
   if (action === "set") {
@@ -328,8 +329,8 @@ export const sendLoadingContent = async <T extends LoadingActions>(chatId: numbe
 /**
  * 
  * @param chatId chat id from telegram request.
- * @param message Input your text you want to be send by bot here.
- * @param options Extend your message with additional parameters. By default: { "parse_mode": "HTML" }
+ * @param message input your text you want to be send by bot here.
+ * @param options extend your message with additional parameters. By default: { "parse_mode": "HTML" }.
  */
 export const telegramSendMessage = async (chatId: number, message: string, options: { [K: string]: any } = { "parse_mode": "HTML" }): Promise<Message.TextMessage> => {
   const extendedOptions = encodeURIOptions(options)
@@ -346,19 +347,19 @@ export const telegramSendMessage = async (chatId: number, message: string, optio
 }
 
 /**
- * 
+ * The function lets you delete the message in telegram by id.
  * @param chatId chat id from telegram request.
- * @param message Input your text you want to be send by bot here.
- * @param options Extend your message with additional parameters. By default: { "parse_mode": "HTML" }
+ * @param messageId Id of the message to be deleted.
+ * @returns True if successfully delete or throws an Error otherwise. 
  */
 export const telegramDeleteMessage = async (chatId: number, messageId: number): Promise<boolean> => {
   const messageData = await fetch(
     `https://api.telegram.org/bot${process.env.NEXT_TELEGRAM_TOKEN}/deleteMessage?chat_id=${chatId}&message_id=${messageId}`
   )
     .then(res => res.json())
+    .then(res => res.result)
     .catch(err => {
-      throw errors.TELEGRAM_QUERY(`Couldn't send telegram message%0AReason: ${err}`)
+      throw errors.TELEGRAM_QUERY(`Couldn't delete telegram message%0AReason: ${err}`)
     });
-
   return messageData
 }

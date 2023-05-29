@@ -21,7 +21,7 @@ const db = getFirestore(app)
 
 const firebase = async (req: NextApiRequest, res: NextApiResponse<QueryData.Data | string>) => {
   try {
-    if (req.headers["firebase-query"] !== "firebaseQueryHeader") throw new Error("Don't pick on others, please :)")
+    if (req.headers["firebase-query"] !== process.env.NEXT_SAFETY_FETCH_HEADER) throw new Error("Don't pick on others, please :)")
 
     if (req.method === 'GET') {
       console.log('firebase GET')

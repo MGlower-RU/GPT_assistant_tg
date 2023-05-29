@@ -90,7 +90,7 @@ export const initializeUserDoc = async (db: Firestore, chatId: number): Promise<
 
   if (!userData.exists()) {
     await setDoc(userData.ref, {
-      apikey: null,
+      apiKey: null,
       messages: []
     })
 
