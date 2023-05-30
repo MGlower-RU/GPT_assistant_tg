@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from "next"
 
-import { initializeApp } from "firebase/app";
+import { initializeApp, deleteApp } from "firebase/app";
 import { getUserData, initializeUserDoc, updateApiKey, updateMessages } from "@/firebase/functions";
 import { getFirestore } from "firebase/firestore";
 import { CatchErrorProps, MessageAction, QueryData, RequestFirebaseApi } from "@/types/tlg";
@@ -17,6 +17,7 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
+// deleteApp(app)
 const db = getFirestore(app)
 
 const firebase = async (req: NextApiRequest, res: NextApiResponse<QueryData.Data | string>) => {
