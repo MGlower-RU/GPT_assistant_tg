@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from "next"
 
-import { initializeApp, deleteApp } from "firebase/app";
+import { initializeApp } from "firebase/app";
 import { getUserData, initializeUserDoc, updateApiKey, updateMessages } from "@/firebase/functions";
 import { getFirestore } from "firebase/firestore";
 import { CatchErrorProps, MessageAction, QueryData, RequestFirebaseApi } from "@/types/tlg";
@@ -9,7 +9,6 @@ import { errors } from "@/utils/telegram/errors";
 const firebaseConfig = {
   apiKey: process.env.FIREBASE_APIKEY,
   authDomain: process.env.FIREBASE_AUTHDOMAIN,
-  databaseURL: process.env.FIREBASE_DATABASEURL,
   projectId: process.env.FIREBASE_PROJECTID,
   storageBucket: process.env.FIREBASE_STORAGEBUCKET,
   messagingSenderId: process.env.FIREBASE_MESSAGINGSENDERID,
@@ -21,7 +20,7 @@ const db = getFirestore(app)
 
 const firebase = async (req: NextApiRequest, res: NextApiResponse<QueryData.Data | string>) => {
   try {
-    if (req.headers["firebase-query"] !== process.env.NEXT_SAFETY_FETCH_HEADER) throw new Error("Don't pick on others, please :)")
+    if (req.headers["firebase-query"] !== process.env.SAFETY_FETCH_HEADER) throw new Error("Don't pick on others, please :)")
 
     if (req.method === 'GET') {
       console.log('firebase GET')
