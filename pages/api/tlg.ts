@@ -1,19 +1,27 @@
-import { helpMessage, hostURL, defaultMessage, setApikey, setURL, startMessage, telegramSendMessage, startNewBotChat, getUserMessageData, setUserMessageData, sendLoadingContent } from "@/utils/telegram/functions";
+import { helpMessage, hostURL, defaultMessage, setApikey, setURL, startMessage, telegramSendMessage, startNewBotChat, getUserMessageData, setUserMessageData, sendLoadingContent, isDev } from "@/utils/telegram/functions";
 import { CatchErrorProps, MessageAction } from "@/types/tlg";
 import { NextApiRequest, NextApiResponse } from "next";
 
-import type { CallbackQuery, InlineQueryResult, Message } from 'typegram'
+import type { Message } from 'typegram'
 import { errors } from "@/utils/telegram/errors";
 
+const allowedDevIds = [754969855, 6079106109]
+
 const tlg = async (req: NextApiRequest, res: NextApiResponse) => {
-  // const description = `🤖 Your personal AI assistant in Telegram! Get instant help with anything you need, 24/7. Let's chat! 💬`
-  // await fetch(`https://api.telegram.org/bot6229726777:AAHeThWTuqQc-58Wx5nH5Unn_7FP7omF6yQ/setMyShortDescription?short_description=${description}`)
   // return res.status(200).json('ok')
   if (hostURL === null) setURL(`https://${req.headers.host}`)
 
   let isReplyQuery = req.body.callback_query ? true : false
   let message: Message.TextMessage = isReplyQuery ? req.body.callback_query.message : req.body.message
   let chatId = message.chat.id
+
+  if (isDev) {
+    console.log('development')
+    if (!allowedDevIds.includes(chatId)) {
+      telegramSendMessage(chatId, 'Sorry! My creator forbides me to talk to strangers.')
+      return res.status(200).json('dev')
+    }
+  }
 
   if (isReplyQuery) {
     message.text = req.body.callback_query.data
@@ -70,7 +78,9 @@ const tlg = async (req: NextApiRequest, res: NextApiResponse) => {
     setUserMessageData(chatId, { action: MessageAction.BOT_PROMPT })
   }
   finally {
-    await sendLoadingContent(chatId, "remove", messageId)
+    if (messageId) {
+      await sendLoadingContent(chatId, "remove", messageId)
+    }
     res.status(200).json('ok')
   }
 }
