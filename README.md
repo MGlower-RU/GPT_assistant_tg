@@ -1,14 +1,46 @@
-Hook setup: https://api.telegram.org/bot<YOUR_CHAT_TOKEN>/setWebhook?url=<YOUR_HTTPS_URL>/api/tlg
+# AI Assistant bot
 
-- add modes button to choose mode AND newMode button to set new mode
-- set mode using /set command and (command /new with message like: "Mode [mode name] is set")
-- more generic functions and typo
-- /balance command && payment with payment API
-- /test command that will set my apiKey for user and count test uses in db (trial: true option in User data). P.S. Be sure that my key is not exposed in requests
-- (optionally) try add bot for groups?
-- /cancel command to cancel the current operation
+// add bot's avatar as an image preview
 
-## Today
+Bot link: [@MGlower_GPT_Bot](https://t.me/MGlower_GPT_Bot)
 
-- delete unnecessary files from project
-- create .env.production to show what variables are needed
+This is an AI Assistant Bot created to answer any of your questions.
+
+To start using it input your [OpenAI apiKey](https://platform.openai.com/account/api-keys) with a command /apiKey  
+or use test account with a command /test. You will have 20 trial uses.
+
+After that send a message to get an answer to your question.
+
+The bot remembers the context of your dialog.  
+After 20 messages from you new chat will be created and Bot context will be reset.
+
+**Here is the list of Bot available commands:**
+
+- 😣 _/help_ - get information of how this bot works
+- 🆕 _/new_ - start new conversation with bot
+- 🦖 _/mode_ - select a mode for current chat and manage modes
+- 🔑 _/apikey_ - input your OpenAI apikey
+- 📜 _/history_ - show previous conversation
+- 📌 _/retry_ - send previous prompt again
+
+What is the context?  
+By default, Bot remembers the content of your last messages. It is done like that so you can ask bot to clarify previous question OR to have a continuous conversation within the topic.  
+Use command /new to reset a context.
+
+Have any questions?  
+Send a detailed message to account @MGlower (https://t.me/MGlower)
+
+Found a problem?  
+Create an issue on GitHub repository of the project Link (https://github.com/MGlower-RU/GPT_assistant_tg/issues)
+
+## Setup your own bot
+
+1.  Clone this repository by using command:
+
+        git clone -b main git@github.com:MGlower-RU/GPT_assistant_tg.git
+
+2.  Initialize a package.json file
+
+        npm init
+
+<!-- continue -->
