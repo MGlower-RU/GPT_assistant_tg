@@ -6,7 +6,9 @@ Hook setup: https://api.telegram.org/bot<YOUR_CHAT_TOKEN>/setWebhook?url=<YOUR_H
 - /balance command && payment with payment API
 - /test command that will set my apiKey for user and count test uses in db (trial: true option in User data). P.S. Be sure that my key is not exposed in requests
 - (optionally) try add bot for groups?
+- /cancel command to cancel the current operation
 
 ## Today
 
-- generate avatar and description for bot with AI like (MidJourney | GPT) or any other
+- try to create a new bot and use it as a development layout and a current for production
+- create a new development remote branch and make pull requests to the main branch to update a bot

@@ -26,6 +26,9 @@ console.log('updated');
 const usersDataMessages = new Map<number, UserMessageData>()
 
 export let hostURL: string | null = null
+export const isDev = !process.env.NODE_ENV || process.env.NODE_ENV === 'development'
+
+let NEXT_TELEGRAM_TOKEN = isDev ? process.env.NEXT_TELEGRAM_TOKEN_DEV : process.env.NEXT_TELEGRAM_TOKEN
 
 export const USER_MESSAGES_MAX_LENGTH = 20
 
@@ -336,7 +339,7 @@ export const telegramSendMessage = async (chatId: number, message: string, optio
   const extendedOptions = encodeURIOptions(options)
 
   const messageData = await fetch(
-    `https://api.telegram.org/bot${process.env.NEXT_TELEGRAM_TOKEN}/sendMessage?chat_id=${chatId}&text=${message}&${extendedOptions}`
+    `https://api.telegram.org/bot${NEXT_TELEGRAM_TOKEN}/sendMessage?chat_id=${chatId}&text=${message}&${extendedOptions}`
   )
     .then(res => res.json())
     .then(data => data.result)
@@ -354,7 +357,7 @@ export const telegramSendMessage = async (chatId: number, message: string, optio
  */
 export const telegramDeleteMessage = async (chatId: number, messageId: number): Promise<boolean> => {
   const messageData = await fetch(
-    `https://api.telegram.org/bot${process.env.NEXT_TELEGRAM_TOKEN}/deleteMessage?chat_id=${chatId}&message_id=${messageId}`
+    `https://api.telegram.org/bot${NEXT_TELEGRAM_TOKEN}/deleteMessage?chat_id=${chatId}&message_id=${messageId}`
   )
     .then(res => res.json())
     .then(res => res.result)
