@@ -3,7 +3,7 @@ import { ChatCompletionRequestMessageRoleEnum, Configuration, OpenAIApi } from "
 import { BotCommand, Message } from "typegram"
 import { errors } from "./errors"
 
-const FETCH_SAFETY_HEADER = process.env.NEXT_SAFETY_FETCH_HEADER!
+const FETCH_SAFETY_HEADER = process.env.SAFETY_FETCH_HEADER!
 
 const commands: BotCommand[] = [
   { command: "😣 /help", description: 'get information of how this bot works' },
@@ -28,7 +28,7 @@ const usersDataMessages = new Map<number, UserMessageData>()
 export let hostURL: string | null = null
 export const isDev = !process.env.NODE_ENV || process.env.NODE_ENV === 'development'
 
-let NEXT_TELEGRAM_TOKEN = isDev ? process.env.NEXT_TELEGRAM_TOKEN_DEV : process.env.NEXT_TELEGRAM_TOKEN
+let TELEGRAM_TOKEN = isDev ? process.env.TELEGRAM_TOKEN_DEV : process.env.TELEGRAM_TOKEN
 
 export const USER_MESSAGES_MAX_LENGTH = 20
 
@@ -339,7 +339,7 @@ export const telegramSendMessage = async (chatId: number, message: string, optio
   const extendedOptions = encodeURIOptions(options)
 
   const messageData = await fetch(
-    `https://api.telegram.org/bot${NEXT_TELEGRAM_TOKEN}/sendMessage?chat_id=${chatId}&text=${message}&${extendedOptions}`
+    `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage?chat_id=${chatId}&text=${message}&${extendedOptions}`
   )
     .then(res => res.json())
     .then(data => data.result)
@@ -357,7 +357,7 @@ export const telegramSendMessage = async (chatId: number, message: string, optio
  */
 export const telegramDeleteMessage = async (chatId: number, messageId: number): Promise<boolean> => {
   const messageData = await fetch(
-    `https://api.telegram.org/bot${NEXT_TELEGRAM_TOKEN}/deleteMessage?chat_id=${chatId}&message_id=${messageId}`
+    `https://api.telegram.org/bot${TELEGRAM_TOKEN}/deleteMessage?chat_id=${chatId}&message_id=${messageId}`
   )
     .then(res => res.json())
     .then(res => res.result)

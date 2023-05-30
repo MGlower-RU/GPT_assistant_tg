@@ -10,5 +10,5 @@ Hook setup: https://api.telegram.org/bot<YOUR_CHAT_TOKEN>/setWebhook?url=<YOUR_H
 
 ## Today
 
-- try to create a new bot and use it as a development layout and a current for production
-- create a new development remote branch and make pull requests to the main branch to update a bot
+- delete unnecessary files from project
+- create .env.production to show what variables are needed
