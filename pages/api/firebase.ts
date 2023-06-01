@@ -1,9 +1,9 @@
 import { NextApiRequest, NextApiResponse } from "next"
 
 import { initializeApp } from "firebase/app";
-import { getUserData, initializeUserDoc, updateApiKey, updateMessages } from "@/firebase/functions";
+import { getModesCollection, getUserData, initializeUserDoc, updateApiKey, updateMessages } from "@/firebase/functions";
 import { getFirestore } from "firebase/firestore";
-import { CatchErrorProps, MessageAction, QueryData, RequestFirebaseApi } from "@/types/tlg";
+import { CatchErrorProps, MessageAction, QueryData, RequestFirebaseApiGet, RequestFirebaseApiPost } from "@/types/tlg";
 import { errors } from "@/utils/telegram/errors";
 
 const firebaseConfig = {
@@ -25,18 +25,24 @@ const firebase = async (req: NextApiRequest, res: NextApiResponse<QueryData.Data
     if (req.method === 'GET') {
       console.log('firebase GET')
 
-      const chatId = req.query['chatId'] as string
+      const { chatId, action } = req.query as RequestFirebaseApiGet
 
-      if (!chatId) throw new Error("Incorrect request");
+      if (!chatId) throw errors.OTHER("Incorrect chatId");
 
-      const userData = await getUserData(db, +chatId)
-
-      return res.status(200).json(userData)
+      if (action === MessageAction.BOT_PROMPT) {
+        const userData = await getUserData(db, +chatId)
+        return res.status(200).json(userData)
+      } else if (action === MessageAction.MODE_ALL) {
+        const modesData = await getModesCollection(db, +chatId)
+        return res.status(200).json(modesData)
+      } else {
+        throw errors.OTHER("This action type doesn't exist")
+      }
     } else if (req.method === 'POST') {
       console.log('POST something')
 
       let responseJSON: any = null
-      const data: RequestFirebaseApi = JSON.parse(req.body)
+      const data: RequestFirebaseApiPost = JSON.parse(req.body)
 
       const { action } = data
       const chatId = +data.chatId

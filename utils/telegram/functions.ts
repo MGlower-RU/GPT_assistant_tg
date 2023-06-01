@@ -64,7 +64,7 @@ export async function startMessage(message: Message.TextMessage) {
   `
 
   await telegramSendMessage(chatId, response)
-  setUserMessageData(chatId, { action: MessageAction.BOT_PROMPT })
+  setUserMessageData(chatId, { action: MessageAction.BOT_PROMPT, mode: 'default' })
 }
 
 /**
@@ -184,6 +184,101 @@ export async function startNewBotChat(chatId: number, message?: string) {
   setUserMessageData(chatId, { action: MessageAction.BOT_PROMPT })
 }
 
+/**
+ * Function to send a message with mode menu
+ * @param chatId telegram chat id
+ */
+export const getModesMenu = async (chatId: number) => {
+  const response = `
+    You are in the modes menu.
+    %0A
+    %0AChoose one of the options:
+    %0Aall - to see all modes with its prompts
+    %0Aset - to set a mode for the chat
+    %0Aadd - to add a new mode
+  `
+
+  const options = {
+    parse_mode: "HTML",
+    reply_markup: {
+      inline_keyboard: [
+        [
+          {
+            text: 'all',
+            callback_data: '/mode_all'
+          },
+          {
+            text: 'set',
+            callback_data: '/mode_set'
+          },
+          {
+            text: 'add',
+            callback_data: '/mode_add'
+          },
+        ],
+      ],
+    }
+  }
+
+  const message = await telegramSendMessage(chatId, response, options)
+  setUserMessageData(chatId, { last_message_id: message.message_id })
+}
+
+/**
+ * Function edits a mode menu message and lets you choose a mode for bot
+ * @param chatId id of your chat
+ */
+export const setMode = async (chatId: number, mode?: string) => {
+  const messageData = getUserMessageData(chatId)
+
+  if (messageData.action === MessageAction.MODE_SET && mode) {
+    setUserMessageData(chatId, { mode })
+
+    await startNewBotChat(chatId)
+    await telegramEditMessage(chatId, `Mode [${mode}] is set`, messageData.last_message_id)
+  } else {
+    const allModes = await getAllModesQuery(chatId)
+    const messagId = getUserMessageData(chatId).last_message_id
+
+    if (allModes !== null) {
+      const inline_keyboard = allModes.map(mode => [{ text: mode.name, callback_data: mode.name }])
+      const response = `Choose your mode:`
+      const options = {
+        parse_mode: "HTML",
+        reply_markup: {
+          inline_keyboard
+        }
+      }
+
+      await telegramEditMessage(chatId, response, messagId, options)
+      setUserMessageData(chatId, { action: MessageAction.MODE_SET })
+    }
+  }
+}
+
+export const getAllModes = async (chatId: number) => {
+  const allModes = await getAllModesQuery(chatId)
+
+  if (allModes !== null) {
+    const modesMessage = allModes.reduce((acc, { name, description }) => {
+      return acc + `
+        %0A<b>${name}</b>
+        %0A--------------------------
+        %0A${description}
+        %0A
+        %0A
+      `
+    }, '')
+    const response = `
+      <i>The modes you already have:</i>
+      %0A
+      ${modesMessage}
+    `
+    await telegramSendMessage(chatId, response)
+  }
+
+}
+
 export async function defaultMessage(message: Message.TextMessage) {
   const { chat: { id }, text } = message
   let actionType = getUserMessageData(id).action
@@ -193,6 +288,13 @@ export async function defaultMessage(message: Message.TextMessage) {
     await getBotPrompt(id, text)
   } else if (actionType === MessageAction.APIKEY_INPUT) {
     await setApikey(id, text)
+  } else if (actionType === MessageAction.MODE_SET) {
+    if (message.from?.is_bot) {
+      await setMode(id, text)
+    } else {
+      await telegramSendMessage(id, 'You have to pick one of the options')
+      throw errors.TELEGRAM_QUERY('Incorrect option input')
+    }
   }
 }
 
@@ -202,7 +304,7 @@ export async function defaultMessage(message: Message.TextMessage) {
  * @param content prompt you want to pass to the bot
  */
 export const getBotPrompt = async (chatId: number, content: string) => {
-  const fbData: Exclude<QueryData.QueryResponse<QueryData.Data>, string> = await fetch(`${hostURL}/api/firebase?chatId=${chatId}`, {
+  const fbData: Exclude<QueryData.QueryResponse<QueryData.UserDataQuery | QueryData.ErrorUnion>, string> = await fetch(`${hostURL}/api/firebase?chatId=${chatId}&action=bot_prompt`, {
     method: 'GET',
     headers: {
       "firebase-query": FETCH_SAFETY_HEADER
@@ -303,10 +405,38 @@ export const encodeURIOptions = (options: { [K: string]: any }): ReturnType<type
   return objectKeys.map(([k, v]) => `${k}=${encodeURIComponent(typeof v === 'object' ? JSON.stringify(v) : v)}`).join("&")
 }
 
+/**
+ * 
+ * @param chatId 
+ * @returns 
+ */
+const getAllModesQuery = async (chatId: number): Promise<QueryData.ModesQuery | null> => {
+  const allModes: Exclude<QueryData.QueryResponse<QueryData.ModesQuery | QueryData.ErrorUnion>, string> = await fetch(`${hostURL}/api/firebase?chatId=${chatId}&action=${MessageAction.MODE_ALL}`, {
+    method: 'GET',
+    headers: {
+      "firebase-query": FETCH_SAFETY_HEADER
+    }
+  }).then(res => res.json())
+
+  if ('error' in allModes) {
+    throw allModes
+  }
+
+  if (allModes.length === 0) {
+    const messagId = getUserMessageData(chatId).last_message_id
+    const response = `
+        You haven't added any modes yet.
+        %0AUse command /mode and choose "add" option to add a new mode.
+      `
+    await telegramEditMessage(chatId, response, messagId)
+    return null
+  } else {
+    return allModes
+  }
+}
+
 type LoadingActions = "set" | "remove"
 type LoadingReturnType<T> = T extends "set" ? number : T extends "remove" ? string : any
-
-// make function overloads
 /**
  * 
  * @param chatId telegram chat id.
@@ -340,6 +470,27 @@ export const telegramSendMessage = async (chatId: number, message: string, optio
 
   const messageData = await fetch(
     `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage?chat_id=${chatId}&text=${message}&${extendedOptions}`
+  )
+    .then(res => res.json())
+    .then(data => data.result)
+    .catch(err => {
+      throw errors.TELEGRAM_QUERY(`Couldn't send telegram message%0AReason: ${err}`)
+    });
+  return messageData
+}
+
+/**
+ * 
+ * @param chatId chat id from telegram request.
+ * @param message input your text you want to be send by bot here.
+ * @param messageId input id of the message you want to edit.
+ * @param options extend your message with additional parameters. By default: { "parse_mode": "HTML" }.
+ */
+export const telegramEditMessage = async (chatId: number, message: string, messageId: number, options: { [K: string]: any } = { "parse_mode": "HTML" }): Promise<Message.TextMessage> => {
+  const extendedOptions = encodeURIOptions(options)
+
+  const messageData = await fetch(
+    `https://api.telegram.org/bot${TELEGRAM_TOKEN}/editMessageText?chat_id=${chatId}&message_id=${messageId}&text=${message}&${extendedOptions}`
   )
     .then(res => res.json())
     .then(data => data.result)

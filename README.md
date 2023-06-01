@@ -23,14 +23,19 @@ After 20 messages from you new chat will be created and Bot context will be rese
 - 📜 _/history_ - show previous conversation
 - 📌 _/retry_ - send previous prompt again
 
-What is the context?  
+## FAQ
+
+#### **What is the context?**
+
 By default, Bot remembers the content of your last messages. It is done like that so you can ask bot to clarify previous question OR to have a continuous conversation within the topic.  
 Use command /new to reset a context.
 
-Have any questions?  
+#### **Have any questions?**
+
 Send a detailed message to account @MGlower (https://t.me/MGlower)
 
-Found a problem?  
+#### **Found a problem?**
+
 Create an issue on GitHub repository of the project Link (https://github.com/MGlower-RU/GPT_assistant_tg/issues)
 
 ## Setup your own bot

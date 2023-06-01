@@ -2,13 +2,18 @@ import { ChatCompletionRequestMessage } from "openai"
 
 export namespace QueryData {
   export type MessagesQuery = ChatCompletionRequestMessage[]
-
   export type ApikeyQuery = string
+  export type ModeQuery = {
+    name: string,
+    description: string
+  }
 
   export type UserDataQuery = {
     apiKey: ApikeyQuery
     messages: MessagesQuery
   }
+
+  export type ModesQuery = ModeQuery[]
 
   export enum ErrorType {
     APIKEY = 'apikey',
@@ -39,27 +44,18 @@ export namespace QueryData {
 
   export type Data =
     | UserDataQuery
+    | ModesQuery
     | ErrorUnion
 
   /**
    * Import type identificator you want to be chosen from like: { error: 'errorVariant' }
    */
   export type QueryResponse<T> = Awaited<Promise<Extract<QueryData.Data, T> | string>>
-
-  export type InferQueryType<T> = (T extends CollectionTypes.OPENAI_API_KEY ? ApikeyQuery | null : T extends CollectionTypes.MESSAGES ? MessagesQuery | null : never) | null
 }
 
 export enum CollectionTypes {
-  INITIALIZE = 'initialize',
   USERS = 'USERS',
-  // -------------------------- //
-  OPENAI_API_KEY = 'openai_api_keys',
-  MESSAGES = 'messages',
-  MESSAGE_TYPES = 'message_types'
-}
-
-export enum RequestType {
-  INITIALIZE = 'initialize',
+  MODES = 'modes'
 }
 
 export enum MessageAction {
@@ -67,6 +63,9 @@ export enum MessageAction {
   APIKEY_INPUT = 'apikey_input',
   MODE_NAME = 'mode_name',
   MODE_PROMPT = 'mode_prompt',
+  MODE_SET = 'mode_set',
+  MODE_ALL = 'mode_all',
+  MODE_DELETE = 'mode_delete',
   BOT_PROMPT = 'bot_prompt',
   NEW_BOT_CHAT = 'new_bot_chat',
 }
@@ -74,48 +73,46 @@ export enum MessageAction {
 export type UserMessageData = {
   action: MessageAction
   loading: boolean
+  mode: string
+  last_message_id: number
 }
 
-// maybe remove it
 export type RequestInitializeUser = {
   action: MessageAction.INITIALIZE
-  chatId: string
 }
 
 export type RequestUpdateMessages = {
   action: MessageAction.BOT_PROMPT
-  chatId: string
   messages: QueryData.MessagesQuery
 }
 
 export type RequestStartNewChat = {
   action: MessageAction.NEW_BOT_CHAT
-  chatId: string
 }
 
 export type RequestUpdateApiKey = {
   action: MessageAction.APIKEY_INPUT
-  chatId: string
   apiKey: QueryData.ApikeyQuery
 }
 
-// export type RequestUpdateApikey = {
-//   type: CollectionTypes.OPENAI_API_KEY
-//   chatId: string
-//   apikey: QueryData.apiKeyQuery
-// }
+export type RequestBotPrompt = {
+  action: MessageAction.BOT_PROMPT
+}
 
-// export type RequesUpdateMessageStatus = {
-//   type: CollectionTypes.MESSAGE_TYPES
-//   chatId: string
-//   status: MessageTypes
-// }
+export type RequestModeAll = {
+  action: MessageAction.MODE_ALL
+}
 
-export type RequestFirebaseApi = { chatId: string } & (
+export type RequestFirebaseApiPost = { chatId: string } & (
   | RequestInitializeUser
   | RequestUpdateMessages
   | RequestUpdateApiKey
   | RequestStartNewChat
+)
+
+export type RequestFirebaseApiGet = { chatId: string } & (
+  | RequestBotPrompt
+  | RequestModeAll
 )
 // export type RequestFirebaseApi = RequestInitializeUser | RequestUpdateMessages | RequestUpdateApikey | RequesUpdateMessageStatus
 

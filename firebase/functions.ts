@@ -1,7 +1,8 @@
 import { CollectionTypes, QueryData } from "@/types/tlg";
 import { errors } from "@/utils/telegram/errors";
-import { USER_MESSAGES_MAX_LENGTH, telegramSendMessage } from "@/utils/telegram/functions";
-import { DocumentData, DocumentSnapshot, Firestore, Query, doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
+import { getUserMessageData } from "@/utils/telegram/functions";
+import { DocumentData, DocumentSnapshot, Firestore, QueryDocumentSnapshot, collection, doc, getDoc, getDocs, query, setDoc, updateDoc, where } from "firebase/firestore";
+import { ChatCompletionRequestMessage } from "openai";
 
 // RETRIEVE DATA
 
@@ -17,8 +18,30 @@ export const getDocumentData = async (db: Firestore, path: string): Promise<Docu
 
     return query
   } catch (error) {
-    throw new Error("Couldn't get document data")
+    throw errors.OTHER("Couldn't get document data")
   }
+}
+
+/**
+ * 
+ * @param db 
+ * @param path 
+ */
+export const getDocuments = async (db: Firestore, path: string): Promise<QueryDocumentSnapshot<DocumentData>[]> => {
+  try {
+    const queryRef = query(collection(db, path), where("name", "!=", "default"))
+    const querySnapshot = await getDocs(queryRef)
+    return querySnapshot.docs
+  } catch (error) {
+    throw errors.OTHER("Couldn't get collection data")
+  }
+}
+
+export const getModesCollection = async (db: Firestore, chatId: number): Promise<QueryData.ModesQuery> => {
+  const path = `${CollectionTypes.USERS}/${chatId}/${CollectionTypes.MODES}`
+  const modesSnapshotData = await getDocuments(db, path)
+
+  return modesSnapshotData.map(el => el.data()) as QueryData.ModesQuery
 }
 
 /**
@@ -56,7 +79,7 @@ export const updateDocumentData = async (db: Firestore, path: string, data: Part
     const queryRef = doc(db, path)
     await updateDoc(queryRef, data);
   } catch (error) {
-    throw new Error("Couldn't get documentData")
+    throw errors.OTHER("Couldn't get document data")
   }
 }
 
@@ -67,7 +90,18 @@ export const updateDocumentData = async (db: Firestore, path: string, data: Part
  * @param messages Input array of messages
  */
 export const updateMessages = async (db: Firestore, chatId: number, messages: QueryData.MessagesQuery): Promise<void> => {
-  await updateDocumentData(db, `${CollectionTypes.USERS}/${chatId}`, { messages })
+  const { mode } = getUserMessageData(chatId)
+  const path = `${CollectionTypes.USERS}/${chatId}`
+
+  if (mode !== 'default') {
+    const modeDataQuery = await getDocumentData(db, `${path}/modes/${mode}`)
+    const modeData = modeDataQuery.data() as QueryData.ModeQuery
+    const newMessages: ChatCompletionRequestMessage[] = [...messages, { role: 'user', content: modeData.description }]
+
+    await updateDocumentData(db, path, { messages: newMessages })
+  } else {
+    await updateDocumentData(db, path, { messages })
+  }
 }
 
 /**
@@ -84,7 +118,6 @@ export const updateApiKey = async (db: Firestore, chatId: number, apiKey: QueryD
 // INITIALIZE USER
 
 export const initializeUserDoc = async (db: Firestore, chatId: number): Promise<void> => {
-  // getDocumentQuery
   const path = `${CollectionTypes.USERS}/${chatId}`
   const userData = await getDocumentData(db, path)
 
