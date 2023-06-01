@@ -73,11 +73,16 @@ export const getUserData = async (db: Firestore, chatId: number): Promise<QueryD
  * @param db 
  * @param path 
  * @param data 
+ * @param isDocNew 
  */
-export const updateDocumentData = async (db: Firestore, path: string, data: Partial<QueryData.UserDataQuery>) => {
+export const updateDocumentData = async (db: Firestore, path: string, data: Partial<Exclude<QueryData.Data, QueryData.ErrorUnion | QueryData.ModesQuery>>, isDocNew?: boolean) => {
   try {
     const queryRef = doc(db, path)
-    await updateDoc(queryRef, data);
+    if (isDocNew) {
+      await setDoc(queryRef, data)
+    } else {
+      await updateDoc(queryRef, data)
+    }
   } catch (error) {
     throw errors.OTHER("Couldn't get document data")
   }
@@ -112,6 +117,16 @@ export const updateMessages = async (db: Firestore, chatId: number, messages: Qu
  */
 export const updateApiKey = async (db: Firestore, chatId: number, apiKey: QueryData.ApikeyQuery): Promise<void> => {
   await updateDocumentData(db, `${CollectionTypes.USERS}/${chatId}`, { apiKey })
+}
+
+/**
+ * 
+ * @param db 
+ * @param chatId 
+ * @param modeData 
+ */
+export const addNewMode = async (db: Firestore, chatId: number, modeData: QueryData.ModeQuery): Promise<void> => {
+  await updateDocumentData(db, `${CollectionTypes.USERS}/${chatId}/modes/${modeData.name}`, modeData, true)
 }
 
 

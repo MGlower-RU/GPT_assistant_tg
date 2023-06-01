@@ -1,4 +1,4 @@
-import { helpMessage, hostURL, defaultMessage, setApikey, setURL, startMessage, telegramSendMessage, startNewBotChat, getUserMessageData, setUserMessageData, sendLoadingContent, isDev, getModesMenu, setMode, getAllModes } from "@/utils/telegram/functions";
+import { helpMessage, hostURL, defaultMessage, setApikey, setURL, startMessage, telegramSendMessage, startNewBotChat, getUserMessageData, setUserMessageData, sendLoadingContent, isDev, getModesMenu, setMode, getAllModes, addMode, deleteMode } from "@/utils/telegram/functions";
 import { CatchErrorProps, MessageAction } from "@/types/tlg";
 import { NextApiRequest, NextApiResponse } from "next";
 
@@ -61,8 +61,14 @@ const tlg = async (req: NextApiRequest, res: NextApiResponse) => {
       case '/mode_all':
         await getAllModes(chatId)
         break;
+      case '/mode_add':
+        await addMode(chatId)
+        break;
       case '/mode_set':
         await setMode(chatId)
+        break;
+      case '/mode_delete':
+        await deleteMode(chatId)
         break;
       default:
         await defaultMessage(message)

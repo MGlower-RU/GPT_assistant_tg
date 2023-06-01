@@ -25,12 +25,12 @@ console.log('updated');
 
 const usersDataMessages = new Map<number, UserMessageData>()
 
+export const USER_MESSAGES_MAX_LENGTH = 20
 export let hostURL: string | null = null
 export const isDev = !process.env.NODE_ENV || process.env.NODE_ENV === 'development'
 
 let TELEGRAM_TOKEN = isDev ? process.env.TELEGRAM_TOKEN_DEV : process.env.TELEGRAM_TOKEN
 
-export const USER_MESSAGES_MAX_LENGTH = 20
 
 // TELEGRAM COMMANDS FUNCTIONS
 
@@ -225,6 +225,50 @@ export const getModesMenu = async (chatId: number) => {
 }
 
 /**
+ * 
+ * @param chatId 
+ * @param text 
+ */
+export const addMode = async (chatId: number, text?: string) => {
+  const { action, new_mode_name } = getUserMessageData(chatId)
+
+  if (text && action === MessageAction.MODE_NAME) {
+    await telegramSendMessage(chatId, 'Enter mode prompt:')
+    setUserMessageData(chatId, { action: MessageAction.MODE_PROMPT, new_mode_name: text })
+  } else if (text && action === MessageAction.MODE_PROMPT) {
+    const result: QueryData.QueryResponse<QueryData.ErrorUnion> = await fetch(`${hostURL}/api/firebase`, {
+      method: 'POST',
+      body: JSON.stringify({
+        action: MessageAction.MODE_NEW,
+        modeData: {
+          name: new_mode_name,
+          description: text
+        },
+        chatId
+      }),
+      headers: {
+        "firebase-query": FETCH_SAFETY_HEADER
+      }
+    }).then(res => res.json())
+
+    if (typeof result !== 'string') {
+      throw result
+    }
+
+    const response = `
+      Mode [${new_mode_name}] was successfully created.
+      %0A
+      %0ATo use this mode enter command /mode --> choose "set" ---> choose your mode  
+    `
+    await telegramSendMessage(chatId, response)
+    setUserMessageData(chatId, { action: MessageAction.BOT_PROMPT, new_mode_name: '' })
+  } else {
+    await telegramSendMessage(chatId, 'Enter mode name:')
+    setUserMessageData(chatId, { action: MessageAction.MODE_NAME })
+  }
+}
+
+/**
  * Function edits a mode menu message and lets you choose a mode for bot
  * @param chatId id of your chat
  */
@@ -254,6 +298,10 @@ export const setMode = async (chatId: number, mode?: string) => {
       setUserMessageData(chatId, { action: MessageAction.MODE_SET })
     }
   }
+}
+
+export const deleteMode = async (chatId: number) => {
+  console.log('delete chosen mode')
 }
 
 export const getAllModes = async (chatId: number) => {
@@ -295,6 +343,8 @@ export async function defaultMessage(message: Message.TextMessage) {
       await telegramSendMessage(id, 'You have to pick one of the options')
       throw errors.TELEGRAM_QUERY('Incorrect option input')
     }
+  } else if (actionType === MessageAction.MODE_NAME || actionType === MessageAction.MODE_PROMPT) {
+    await addMode(id, text)
   }
 }
 

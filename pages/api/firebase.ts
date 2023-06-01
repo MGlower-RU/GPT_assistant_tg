@@ -1,7 +1,7 @@
 import { NextApiRequest, NextApiResponse } from "next"
 
 import { initializeApp } from "firebase/app";
-import { getModesCollection, getUserData, initializeUserDoc, updateApiKey, updateMessages } from "@/firebase/functions";
+import { addNewMode, getModesCollection, getUserData, initializeUserDoc, updateApiKey, updateMessages } from "@/firebase/functions";
 import { getFirestore } from "firebase/firestore";
 import { CatchErrorProps, MessageAction, QueryData, RequestFirebaseApiGet, RequestFirebaseApiPost } from "@/types/tlg";
 import { errors } from "@/utils/telegram/errors";
@@ -60,6 +60,10 @@ const firebase = async (req: NextApiRequest, res: NextApiResponse<QueryData.Data
       } else if (action === MessageAction.APIKEY_INPUT) {
         await updateApiKey(db, chatId, data.apiKey)
         responseJSON = 'ApiKey successfully updated'
+      } else if (action === MessageAction.MODE_NEW) {
+        const { modeData } = data
+        await addNewMode(db, chatId, modeData)
+        responseJSON = `Mode [${modeData.name}] was created.`
       } else {
         throw errors.OTHER()
       }

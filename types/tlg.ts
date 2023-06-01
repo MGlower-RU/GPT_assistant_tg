@@ -3,16 +3,14 @@ import { ChatCompletionRequestMessage } from "openai"
 export namespace QueryData {
   export type MessagesQuery = ChatCompletionRequestMessage[]
   export type ApikeyQuery = string
-  export type ModeQuery = {
-    name: string,
-    description: string
-  }
-
   export type UserDataQuery = {
     apiKey: ApikeyQuery
     messages: MessagesQuery
   }
-
+  export type ModeQuery = {
+    name: string,
+    description: string
+  }
   export type ModesQuery = ModeQuery[]
 
   export enum ErrorType {
@@ -45,6 +43,7 @@ export namespace QueryData {
   export type Data =
     | UserDataQuery
     | ModesQuery
+    | ModeQuery
     | ErrorUnion
 
   /**
@@ -63,6 +62,7 @@ export enum MessageAction {
   APIKEY_INPUT = 'apikey_input',
   MODE_NAME = 'mode_name',
   MODE_PROMPT = 'mode_prompt',
+  MODE_NEW = 'mode_new',
   MODE_SET = 'mode_set',
   MODE_ALL = 'mode_all',
   MODE_DELETE = 'mode_delete',
@@ -75,6 +75,7 @@ export type UserMessageData = {
   loading: boolean
   mode: string
   last_message_id: number
+  new_mode_name: string
 }
 
 export type RequestInitializeUser = {
@@ -88,6 +89,14 @@ export type RequestUpdateMessages = {
 
 export type RequestStartNewChat = {
   action: MessageAction.NEW_BOT_CHAT
+}
+
+export type RequestAddMode = {
+  action: MessageAction.MODE_NEW
+  modeData: {
+    name: string,
+    description: string
+  }
 }
 
 export type RequestUpdateApiKey = {
@@ -108,6 +117,7 @@ export type RequestFirebaseApiPost = { chatId: string } & (
   | RequestUpdateMessages
   | RequestUpdateApiKey
   | RequestStartNewChat
+  | RequestAddMode
 )
 
 export type RequestFirebaseApiGet = { chatId: string } & (
