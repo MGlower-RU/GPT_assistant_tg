@@ -33,7 +33,7 @@ const tlg = async (req: NextApiRequest, res: NextApiResponse) => {
     userAction = setUserMessageData(chatId, { action: MessageAction.INITIALIZE, loading: false })
   }
 
-  const messageId = await sendLoadingContent(chatId, "set")
+  const loadingId = await sendLoadingContent(chatId, "set")
 
   try {
     if (!message || !message.text) {
@@ -93,8 +93,8 @@ const tlg = async (req: NextApiRequest, res: NextApiResponse) => {
     setUserMessageData(chatId, { action: MessageAction.BOT_PROMPT })
   }
   finally {
-    if (messageId) {
-      await sendLoadingContent(chatId, "remove", messageId)
+    if (loadingId) {
+      await sendLoadingContent(chatId, "remove", loadingId)
     }
     res.status(200).json('ok')
   }

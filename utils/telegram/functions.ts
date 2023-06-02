@@ -196,6 +196,7 @@ export const getModesMenu = async (chatId: number) => {
     %0Aall - to see all modes with its prompts
     %0Aset - to set a mode for the chat
     %0Aadd - to add a new mode
+    %0Adelete - to delete an existing mode
   `
 
   const options = {
@@ -211,11 +212,17 @@ export const getModesMenu = async (chatId: number) => {
             text: 'set',
             callback_data: '/mode_set'
           },
+        ],
+        [
           {
             text: 'add',
             callback_data: '/mode_add'
           },
-        ],
+          {
+            text: 'delete',
+            callback_data: '/mode_delete'
+          },
+        ]
       ],
     }
   }
@@ -273,20 +280,19 @@ export const addMode = async (chatId: number, text?: string) => {
  * @param chatId id of your chat
  */
 export const setMode = async (chatId: number, mode?: string) => {
-  const messageData = getUserMessageData(chatId)
+  const { action, last_message_id } = getUserMessageData(chatId)
 
-  if (messageData.action === MessageAction.MODE_SET && mode) {
+  if (action === MessageAction.MODE_SET && mode) {
     setUserMessageData(chatId, { mode })
 
     await startNewBotChat(chatId)
-    await telegramEditMessage(chatId, `Mode [${mode}] is set`, messageData.last_message_id)
+    await telegramEditMessage(chatId, `Mode [${mode}] is set`, last_message_id)
   } else {
     const allModes = await getAllModesQuery(chatId)
-    const messagId = getUserMessageData(chatId).last_message_id
 
     if (allModes !== null) {
       const inline_keyboard = allModes.map(mode => [{ text: mode.name, callback_data: mode.name }])
-      const response = `Choose your mode:`
+      const response = `Choose a mode to set:`
       const options = {
         parse_mode: "HTML",
         reply_markup: {
@@ -294,14 +300,64 @@ export const setMode = async (chatId: number, mode?: string) => {
         }
       }
 
-      await telegramEditMessage(chatId, response, messagId, options)
+      await telegramEditMessage(chatId, response, last_message_id, options)
       setUserMessageData(chatId, { action: MessageAction.MODE_SET })
     }
   }
 }
 
-export const deleteMode = async (chatId: number) => {
-  console.log('delete chosen mode')
+export const deleteMode = async (chatId: number, modeId?: string) => {
+  const { action, last_message_id, mode } = getUserMessageData(chatId)
+
+  if (modeId && action === MessageAction.MODE_DELETE) {
+    const result: QueryData.QueryResponse<QueryData.ErrorUnion> = await fetch(`${hostURL}/api/firebase`, {
+      method: 'POST',
+      body: JSON.stringify({
+        action: MessageAction.MODE_DELETE,
+        modeId: modeId,
+        chatId
+      }),
+      headers: {
+        "firebase-query": FETCH_SAFETY_HEADER
+      }
+    }).then(res => res.json())
+
+    if (typeof result !== 'string') {
+      throw result
+    }
+
+    const response = `Mode [${modeId}] was successfully deleted.`
+
+    await telegramEditMessage(chatId, response, last_message_id)
+    setUserMessageData(chatId, { action: MessageAction.BOT_PROMPT })
+
+    if (modeId === mode) {
+      setUserMessageData(chatId, { mode: 'default' })
+
+      const response = `
+        You have deleted your currently set mode,
+        %0Atherefore, new chat has started.
+      `
+      await startNewBotChat(chatId, response)
+    }
+    // setNewChat if current mode === deleted mode
+  } else {
+    const allModes = await getAllModesQuery(chatId)
+
+    if (allModes !== null) {
+      const inline_keyboard = allModes.map(mode => [{ text: mode.name, callback_data: mode.name }])
+      const response = `Choose a mode to delete:`
+      const options = {
+        parse_mode: "HTML",
+        reply_markup: {
+          inline_keyboard
+        }
+      }
+
+      await telegramEditMessage(chatId, response, last_message_id, options)
+      setUserMessageData(chatId, { action: MessageAction.MODE_DELETE })
+    }
+  }
 }
 
 export const getAllModes = async (chatId: number) => {
@@ -324,10 +380,9 @@ export const getAllModes = async (chatId: number) => {
     `
     await telegramSendMessage(chatId, response)
   }
-
 }
 
-export async function defaultMessage(message: Message.TextMessage) {
+export const defaultMessage = async (message: Message.TextMessage) => {
   const { chat: { id }, text } = message
   let actionType = getUserMessageData(id).action
 
@@ -340,11 +395,16 @@ export async function defaultMessage(message: Message.TextMessage) {
     if (message.from?.is_bot) {
       await setMode(id, text)
     } else {
-      await telegramSendMessage(id, 'You have to pick one of the options')
-      throw errors.TELEGRAM_QUERY('Incorrect option input')
+      await telegramSendMessage(id, 'You have to pick one of the options above')
     }
   } else if (actionType === MessageAction.MODE_NAME || actionType === MessageAction.MODE_PROMPT) {
     await addMode(id, text)
+  } else if (actionType === MessageAction.MODE_DELETE) {
+    if (message.from?.is_bot) {
+      await deleteMode(id, text)
+    } else {
+      await telegramSendMessage(id, 'You have to pick one of the options above')
+    }
   }
 }
 

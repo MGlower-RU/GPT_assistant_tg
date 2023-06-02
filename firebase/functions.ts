@@ -1,7 +1,7 @@
 import { CollectionTypes, QueryData } from "@/types/tlg";
 import { errors } from "@/utils/telegram/errors";
 import { getUserMessageData } from "@/utils/telegram/functions";
-import { DocumentData, DocumentSnapshot, Firestore, QueryDocumentSnapshot, collection, doc, getDoc, getDocs, query, setDoc, updateDoc, where } from "firebase/firestore";
+import { DocumentData, DocumentSnapshot, Firestore, QueryDocumentSnapshot, collection, deleteDoc, doc, getDoc, getDocs, query, setDoc, updateDoc, where } from "firebase/firestore";
 import { ChatCompletionRequestMessage } from "openai";
 
 // RETRIEVE DATA
@@ -18,7 +18,7 @@ export const getDocumentData = async (db: Firestore, path: string): Promise<Docu
 
     return query
   } catch (error) {
-    throw errors.OTHER("Couldn't get document data")
+    throw errors.FIREBASE_QUERY("Couldn't get document data")
   }
 }
 
@@ -27,13 +27,13 @@ export const getDocumentData = async (db: Firestore, path: string): Promise<Docu
  * @param db 
  * @param path 
  */
-export const getDocuments = async (db: Firestore, path: string): Promise<QueryDocumentSnapshot<DocumentData>[]> => {
+const getDocuments = async (db: Firestore, path: string): Promise<QueryDocumentSnapshot<DocumentData>[]> => {
   try {
     const queryRef = query(collection(db, path), where("name", "!=", "default"))
     const querySnapshot = await getDocs(queryRef)
     return querySnapshot.docs
   } catch (error) {
-    throw errors.OTHER("Couldn't get collection data")
+    throw errors.FIREBASE_QUERY("Couldn't get collection data")
   }
 }
 
@@ -84,7 +84,7 @@ export const updateDocumentData = async (db: Firestore, path: string, data: Part
       await updateDoc(queryRef, data)
     }
   } catch (error) {
-    throw errors.OTHER("Couldn't get document data")
+    throw errors.FIREBASE_QUERY("Couldn't get document data")
   }
 }
 
@@ -129,6 +129,22 @@ export const addNewMode = async (db: Firestore, chatId: number, modeData: QueryD
   await updateDocumentData(db, `${CollectionTypes.USERS}/${chatId}/modes/${modeData.name}`, modeData, true)
 }
 
+
+// DELETE DATA
+
+const deleteDocument = async (db: Firestore, path: string) => {
+  try {
+    const queryRef = doc(db, path)
+    await deleteDoc(queryRef)
+  } catch (error) {
+    throw errors.FIREBASE_QUERY(`The document doesn't exist or can't be deleted at the moment.`)
+  }
+}
+
+export const deleteModeDocument = async (db: Firestore, chatId: number, modeId: string) => {
+  const path = `${CollectionTypes.USERS}/${chatId}/${CollectionTypes.MODES}/${modeId}`
+  await deleteDocument(db, path)
+}
 
 // INITIALIZE USER
 

@@ -1,7 +1,7 @@
 import { NextApiRequest, NextApiResponse } from "next"
 
 import { initializeApp } from "firebase/app";
-import { addNewMode, getModesCollection, getUserData, initializeUserDoc, updateApiKey, updateMessages } from "@/firebase/functions";
+import { addNewMode, deleteModeDocument, getModesCollection, getUserData, initializeUserDoc, updateApiKey, updateMessages } from "@/firebase/functions";
 import { getFirestore } from "firebase/firestore";
 import { CatchErrorProps, MessageAction, QueryData, RequestFirebaseApiGet, RequestFirebaseApiPost } from "@/types/tlg";
 import { errors } from "@/utils/telegram/errors";
@@ -64,6 +64,10 @@ const firebase = async (req: NextApiRequest, res: NextApiResponse<QueryData.Data
         const { modeData } = data
         await addNewMode(db, chatId, modeData)
         responseJSON = `Mode [${modeData.name}] was created.`
+      } else if (action === MessageAction.MODE_DELETE) {
+        const { modeId } = data
+        await deleteModeDocument(db, chatId, modeId)
+        responseJSON = `Mode [${modeId}] was deleted.`
       } else {
         throw errors.OTHER()
       }
@@ -74,11 +78,6 @@ const firebase = async (req: NextApiRequest, res: NextApiResponse<QueryData.Data
   } catch (error) {
     console.log('error in Fb')
     const typedError = error as CatchErrorProps
-
-    // Use this as a typeGuard
-    // function isCustomError(error): error is ErrorUnion {
-    //   return 'error' in error
-    // }
 
     if ('error' in typedError) {
       res.status(400).json(typedError)

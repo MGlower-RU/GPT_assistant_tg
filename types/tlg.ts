@@ -99,6 +99,11 @@ export type RequestAddMode = {
   }
 }
 
+export type RequestDeleteMode = {
+  action: MessageAction.MODE_DELETE
+  modeId: string
+}
+
 export type RequestUpdateApiKey = {
   action: MessageAction.APIKEY_INPUT
   apiKey: QueryData.ApikeyQuery
@@ -118,6 +123,7 @@ export type RequestFirebaseApiPost = { chatId: string } & (
   | RequestUpdateApiKey
   | RequestStartNewChat
   | RequestAddMode
+  | RequestDeleteMode
 )
 
 export type RequestFirebaseApiGet = { chatId: string } & (
