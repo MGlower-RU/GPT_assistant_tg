@@ -286,15 +286,16 @@ export const addMode = async (chatId: number, text?: string) => {
 /**
  * Function edits a mode menu message and lets you choose a mode for bot
  * @param chatId id of your chat
+ * @param modeId
  */
-export const setMode = async (chatId: number, mode?: string) => {
+export const setMode = async (chatId: number, modeId?: string) => {
   const { action, last_message_id } = getUserMessageData(chatId)
 
-  if (action === MessageAction.MODE_SET && mode) {
-    setUserMessageData(chatId, { mode: mode })
+  if (action === MessageAction.MODE_SET && modeId) {
+    setUserMessageData(chatId, { mode: modeId })
 
     await startNewBotChat(chatId)
-    await telegramEditMessage(chatId, `Mode [${mode}] is set`, last_message_id)
+    await telegramEditMessage(chatId, `Mode [${modeId}] is set`, last_message_id)
   } else {
     const allModes = await getAllModesQuery(chatId)
 
