@@ -371,8 +371,8 @@ export const deleteMode = async (chatId: number, modeId?: string) => {
       setUserMessageData(chatId, { mode: 'default' })
 
       const response = `
-        You have deleted your currently set mode,
-        %0Atherefore, new chat has started.
+        You have deleted your last conversation mode,
+        %0Atherefore, new chat without any mode has started.
       `
       await startNewBotChat(chatId, response)
     }
