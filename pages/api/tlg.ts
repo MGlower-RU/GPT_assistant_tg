@@ -15,13 +15,13 @@ const tlg = async (req: NextApiRequest, res: NextApiResponse) => {
   let message: Message.TextMessage = isReplyQuery ? req.body.callback_query.message : req.body.message
   let chatId = message.chat.id
 
-  if (isDev) {
-    console.log('development')
-    if (!allowedDevIds.includes(chatId)) {
-      telegramSendMessage(chatId, 'Sorry! My creator forbides me to talk to strangers.')
-      return res.status(200).json('dev')
-    }
-  }
+  // if (isDev) {
+  //   console.log('development')
+  //   if (!allowedDevIds.includes(chatId)) {
+  //     telegramSendMessage(chatId, 'Sorry! My creator forbides me to talk to strangers.')
+  //     return res.status(200).json('dev')
+  //   }
+  // }
 
   if (isReplyQuery) {
     message.text = req.body.callback_query.data
