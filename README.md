@@ -7,7 +7,7 @@ Bot link: [@MGlower_GPT_Bot](https://t.me/MGlower_GPT_Bot)
 This is an AI Assistant Bot created to answer any of your questions.
 
 To start using it input your [OpenAI apiKey](https://platform.openai.com/account/api-keys) with a command /apiKey  
-or use test account with a command /test. You will have 20 trial uses.
+<!-- or use test account with a command /test. You will have 20 trial uses. -->
 
 After that send a message to get an answer to your question.
 

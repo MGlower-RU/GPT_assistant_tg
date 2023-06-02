@@ -650,27 +650,6 @@ export const telegramSendMessage = async (chatId: number, message: string, optio
 }
 
 /**
- * 
- * @param chatId chat id from telegram request.
- * @param message input your text you want to be send by bot here.
- * @param messageId input id of the message you want to edit.
- * @param options extend your message with additional parameters. By default: { "parse_mode": "HTML" }.
- */
-export const telegramEditMessage = async (chatId: number, message: string, messageId: number, options: { [K: string]: any } = { "parse_mode": "HTML" }): Promise<Message.TextMessage> => {
-  const extendedOptions = encodeURIOptions(options)
-
-  const messageData = await fetch(
-    `https://api.telegram.org/bot${TELEGRAM_TOKEN}/editMessageText?chat_id=${chatId}&message_id=${messageId}&text=${message}&${extendedOptions}`
-  )
-    .then(res => res.json())
-    .then(data => data.result)
-    .catch(err => {
-      throw errors.TELEGRAM_QUERY(`Couldn't send telegram message%0AReason: ${err}`)
-    });
-  return messageData
-}
-
-/**
  * The function lets you delete the message in telegram by id.
  * @param chatId chat id from telegram request.
  * @param messageId Id of the message to be deleted.
