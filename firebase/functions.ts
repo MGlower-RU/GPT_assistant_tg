@@ -90,7 +90,7 @@ export const updateDocumentData = async (db: Firestore, path: string, data: Part
       await updateDoc(queryRef, data)
     }
   } catch (error) {
-    throw errors.FIREBASE_QUERY("Couldn't get document data")
+    throw errors.FIREBASE_QUERY("Couldn't update document data")
   }
 }
 
@@ -101,10 +101,10 @@ export const updateDocumentData = async (db: Firestore, path: string, data: Part
  * @param messages Input array of messages
  */
 export const updateMessages = async (db: Firestore, chatId: number, messages: QueryData.MessagesQuery): Promise<void> => {
-  const mode = getUserMessageData(chatId).mode
+  const mode = getUserMessageData(chatId).mode ?? 'default'
   const path = `${CollectionTypes.USERS}/${chatId}`
 
-  if (mode && mode !== 'default') {
+  if (mode !== 'default') {
     const modeDataQuery = await getDocumentData(db, `${path}/modes/${mode}`)
     const modeData = modeDataQuery.data() as QueryData.ModeQuery
     const newMessages: ChatCompletionRequestMessage[] = [...messages, { role: 'user', content: modeData.description }]
