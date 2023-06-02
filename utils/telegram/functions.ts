@@ -6,20 +6,21 @@ import { errors } from "./errors"
 const FETCH_SAFETY_HEADER = process.env.SAFETY_FETCH_HEADER!
 
 const commands: BotCommand[] = [
-  { command: "😣 /help", description: 'get information of how this bot works' },
-  { command: "🆕 /new", description: 'start new conversation with bot' },
-  { command: "🦖 /mode", description: 'select a mode for current chat and manage modes' },
-  { command: "🔑 /apikey", description: 'input your OpenAI apikey' },
-  { command: "📜 /history", description: 'show previous conversation (in development)' },
-  { command: "📌 /retry", description: 'send previous prompt again' },
-  { command: "✖️ /cancel", description: 'cancel an active action' },
+  { command: "/help", description: 'get information of how this bot works' },
+  { command: "/new", description: 'start new conversation with bot' },
+  { command: "/mode", description: 'select a mode for current chat and manage modes' },
+  { command: "/apikey", description: 'input your OpenAI apikey' },
+  { command: "/history", description: 'show previous conversation' },
+  { command: "/retry", description: 'send previous prompt again' },
+  { command: "/cancel", description: 'cancel an active action' },
 ]
+const commandsIcons = ['😣', '🆕', '🦖', '🔑', '📜', '📌', '✖️']
 
-const commandsString = commands.reduce((acc, { command, description }) => {
+const commandsString = commands.reduce((acc, { command, description }, idx) => {
   return acc + `
-      %0A-------------------
-      %0A${command} - ${description}
-    `
+  %0A-------------------
+  %0A${commandsIcons[idx] ?? '🍥'} ${command} - ${description}
+  `
 }, '')
 
 console.log('updated');
@@ -30,8 +31,14 @@ export const USER_MESSAGES_MAX_LENGTH = 20
 export let hostURL: string | null = null
 export const isDev = !process.env.NODE_ENV || process.env.NODE_ENV === 'development'
 
-let TELEGRAM_TOKEN = isDev ? process.env.TELEGRAM_TOKEN_DEV : process.env.TELEGRAM_TOKEN
+let TELEGRAM_TOKEN = isDev ? process.env.TELEGRAM_TOKEN_DEV : process.env.TELEGRAM_TOKEN;
 
+// setBotCommands automatically
+(async () => {
+  await fetch(
+    `https://api.telegram.org/bot${TELEGRAM_TOKEN}/setMyCommands?commands=${JSON.stringify(commands)}`
+  )
+})()
 
 // TELEGRAM COMMANDS FUNCTIONS
 
