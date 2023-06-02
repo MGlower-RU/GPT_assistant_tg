@@ -101,10 +101,10 @@ export const updateDocumentData = async (db: Firestore, path: string, data: Part
  * @param messages Input array of messages
  */
 export const updateMessages = async (db: Firestore, chatId: number, messages: QueryData.MessagesQuery): Promise<void> => {
-  const { mode } = getUserMessageData(chatId)
+  const mode = getUserMessageData(chatId).mode
   const path = `${CollectionTypes.USERS}/${chatId}`
 
-  if (mode !== 'default') {
+  if (mode && mode !== 'default') {
     const modeDataQuery = await getDocumentData(db, `${path}/modes/${mode}`)
     const modeData = modeDataQuery.data() as QueryData.ModeQuery
     const newMessages: ChatCompletionRequestMessage[] = [...messages, { role: 'user', content: modeData.description }]
