@@ -665,7 +665,7 @@ export const telegramEditMessage = async (chatId: number, message: string, messa
     .then(res => res.json())
     .then(data => data.result)
     .catch(err => {
-      throw errors.TELEGRAM_QUERY(`Couldn't send telegram message%0AReason: ${err}`)
+      throw errors.TELEGRAM_QUERY(`Couldn't edit telegram message%0AReason: ${err}`)
     });
   return messageData
 }
