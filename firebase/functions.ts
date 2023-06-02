@@ -1,6 +1,6 @@
 import { CollectionTypes, QueryData } from "@/types/tlg";
 import { errors } from "@/utils/telegram/errors";
-import { getUserMessageData, setUserMessageData } from "@/utils/telegram/functions";
+import { getUserMessageData, setUserMessageData, telegramSendMessage } from "@/utils/telegram/functions";
 import { DocumentData, DocumentSnapshot, Firestore, QueryDocumentSnapshot, collection, deleteDoc, doc, getDoc, getDocs, query, setDoc, updateDoc, where } from "firebase/firestore";
 import { ChatCompletionRequestMessage } from "openai";
 
@@ -104,9 +104,9 @@ export const updateMessages = async (db: Firestore, chatId: number, messages: Qu
   const mode = getUserMessageData(chatId)?.mode ?? 'default'
   const path = `${CollectionTypes.USERS}/${chatId}`
 
-  if (mode !== 'default') {
-    console.log(`Mode [${mode}] has been set`)
+  await telegramSendMessage(chatId, `Mode is: ${mode}`)
 
+  if (mode !== 'default') {
     const modeDataQuery = await getDocumentData(db, `${path}/modes/${mode}`)
     const modeData = modeDataQuery.data() as QueryData.ModeQuery
     const newMessages: ChatCompletionRequestMessage[] = [...messages, { role: 'user', content: modeData.description }]
