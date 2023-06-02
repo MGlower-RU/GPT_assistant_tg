@@ -6,6 +6,7 @@ export namespace QueryData {
   export type UserDataQuery = {
     apiKey: ApikeyQuery
     messages: MessagesQuery
+    mode: string
   }
   export type ModeQuery = {
     name: string,
@@ -69,7 +70,8 @@ export enum MessageAction {
   MODE_DELETE = 'mode_delete',
   BOT_PROMPT = 'bot_prompt',
   NEW_BOT_CHAT = 'new_bot_chat',
-  CHAT_HISTORY = 'chat_history'
+  CHAT_HISTORY = 'chat_history',
+  USER_DATA = 'user_data',
 }
 
 export type UserMessageData = {
@@ -107,9 +109,9 @@ export type RequestDeleteMode = {
   modeId: string
 }
 
-export type RequestUpdateApiKey = {
-  action: MessageAction.APIKEY_INPUT
-  apiKey: QueryData.ApikeyQuery
+export type RequestUpdateUserData = {
+  action: MessageAction.USER_DATA
+  userData: Partial<QueryData.UserDataQuery>
 }
 
 export type RequestBotPrompt = {
@@ -127,7 +129,7 @@ export type RequestChatHistory = {
 export type RequestFirebaseApiPost = { chatId: string } & (
   | RequestInitializeUser
   | RequestUpdateMessages
-  | RequestUpdateApiKey
+  | RequestUpdateUserData
   | RequestStartNewChat
   | RequestAddMode
   | RequestDeleteMode

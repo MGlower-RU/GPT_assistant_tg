@@ -49,7 +49,6 @@ let TELEGRAM_TOKEN = isDev ? process.env.TELEGRAM_TOKEN_DEV : process.env.TELEGR
 export async function startMessage(message: Message.TextMessage) {
   const chatId = message.chat.id
 
-  // initialize only modes and history
   const result: QueryData.QueryResponse<{ error: QueryData.ErrorType.OTHER }> = await fetch(`${hostURL}/api/firebase`, {
     method: 'POST',
     body: JSON.stringify({
@@ -66,9 +65,9 @@ export async function startMessage(message: Message.TextMessage) {
   }
 
   const response = `
-  Welcome to <i>AI assistant bot</i>, ${message.from?.first_name}
-  %0A
-  %0A<b>List of available commands:</b> ${commandsString}
+    Welcome to <i>AI assistant bot</i>, ${message.from?.first_name}
+    %0A
+    %0A<b>List of available commands:</b> ${commandsString}
   `
 
   await telegramSendMessage(chatId, response)
@@ -146,9 +145,9 @@ export async function setApikey(chatId: number, apiKey?: string) {
     const result: QueryData.QueryResponse<{ error: QueryData.ErrorType.OTHER }> = await fetch(`${hostURL}/api/firebase`, {
       method: 'POST',
       body: JSON.stringify({
-        action: MessageAction.APIKEY_INPUT,
+        action: MessageAction.USER_DATA,
         chatId,
-        apiKey
+        userData: { apiKey }
       }),
       headers: {
         "firebase-query": FETCH_SAFETY_HEADER
@@ -159,7 +158,7 @@ export async function setApikey(chatId: number, apiKey?: string) {
       throw result
     }
 
-    await telegramSendMessage(chatId, result)
+    await telegramSendMessage(chatId, 'ApiKey successfully updated')
     setUserMessageData(chatId, { action: MessageAction.BOT_PROMPT })
   } else {
     await telegramSendMessage(chatId, '🔑 Please, input your apiKey:')
@@ -292,6 +291,21 @@ export const setMode = async (chatId: number, modeId?: string) => {
   const { action, last_message_id } = getUserMessageData(chatId)
 
   if (modeId && action === MessageAction.MODE_SET) {
+    const result: QueryData.QueryResponse<{ error: QueryData.ErrorType.OTHER }> = await fetch(`${hostURL}/api/firebase`, {
+      method: 'POST',
+      body: JSON.stringify({
+        action: MessageAction.USER_DATA,
+        chatId,
+        userData: { mode: modeId }
+      }),
+      headers: {
+        "firebase-query": FETCH_SAFETY_HEADER
+      }
+    }).then(res => res.json())
+
+    if (typeof result !== 'string') {
+      throw result
+    }
     setUserMessageData(chatId, { mode: modeId })
 
     await startNewBotChat(chatId)
@@ -329,14 +343,14 @@ export const cancelLastAction = async (chatId: number, isButton?: boolean) => {
 }
 
 export const deleteMode = async (chatId: number, modeId?: string) => {
-  const userData = getUserMessageData(chatId)
+  const { action, last_message_id, mode } = getUserMessageData(chatId)
 
-  if (modeId && userData.action === MessageAction.MODE_DELETE) {
+  if (modeId && action === MessageAction.MODE_DELETE) {
     const result: QueryData.QueryResponse<QueryData.ErrorUnion> = await fetch(`${hostURL}/api/firebase`, {
       method: 'POST',
       body: JSON.stringify({
         action: MessageAction.MODE_DELETE,
-        modeId: modeId,
+        modeId,
         chatId
       }),
       headers: {
@@ -350,10 +364,10 @@ export const deleteMode = async (chatId: number, modeId?: string) => {
 
     const response = `Mode [${modeId}] was successfully deleted.`
 
-    await telegramEditMessage(chatId, response, userData?.last_message_id)
+    await telegramEditMessage(chatId, response, last_message_id)
     setUserMessageData(chatId, { action: MessageAction.BOT_PROMPT })
 
-    if (modeId === userData?.mode) {
+    if (modeId === mode) {
       setUserMessageData(chatId, { mode: 'default' })
 
       const response = `
@@ -375,7 +389,7 @@ export const deleteMode = async (chatId: number, modeId?: string) => {
         }
       }
 
-      await telegramEditMessage(chatId, response, userData.last_message_id, options)
+      await telegramEditMessage(chatId, response, last_message_id, options)
       setUserMessageData(chatId, { action: MessageAction.MODE_DELETE })
     }
   }
@@ -390,7 +404,6 @@ export const getAllModes = async (chatId: number) => {
         %0A<b>${name}</b>
         %0A--------------------------
         %0A${description}
-        %0A
         %0A
       `
     }, '')

@@ -1,12 +1,11 @@
 import { NextApiRequest, NextApiResponse } from "next"
 
 import { initializeApp } from "firebase/app";
-import { addNewMode, deleteModeDocument, getModesCollection, getUserData, initializeUserDoc, updateApiKey, updateMessages } from "@/firebase/functions";
+import { addNewMode, deleteModeDocument, getModesCollection, getUserData, initializeUserDoc, updateMessages, updateUserData } from "@/firebase/functions";
 import { getFirestore } from "firebase/firestore";
 
 import { CatchErrorProps, MessageAction, QueryData, RequestFirebaseApiGet, RequestFirebaseApiPost } from "@/types/tlg";
 import { errors } from "@/utils/telegram/errors";
-import { getUserMessageData, telegramSendMessage, usersDataMessages } from "@/utils/telegram/functions";
 
 const firebaseConfig = {
   apiKey: process.env.FIREBASE_APIKEY,
@@ -60,13 +59,8 @@ const firebase = async (req: NextApiRequest, res: NextApiResponse<QueryData.Data
         await updateMessages(db, chatId, data.messages)
         responseJSON = 'Messages updated'
       } else if (action === MessageAction.NEW_BOT_CHAT) {
-        await telegramSendMessage(chatId, `Fb mode: ${JSON.stringify(usersDataMessages.get(chatId))}`)
-
         await updateMessages(db, chatId, [])
         responseJSON = 'New chat has been started'
-      } else if (action === MessageAction.APIKEY_INPUT) {
-        await updateApiKey(db, chatId, data.apiKey)
-        responseJSON = 'ApiKey successfully updated'
       } else if (action === MessageAction.MODE_NEW) {
         const { modeData } = data
         await addNewMode(db, chatId, modeData)
@@ -75,6 +69,10 @@ const firebase = async (req: NextApiRequest, res: NextApiResponse<QueryData.Data
         const { modeId } = data
         await deleteModeDocument(db, chatId, modeId)
         responseJSON = `Mode [${modeId}] was deleted.`
+      } else if (action === MessageAction.USER_DATA) {
+        const { userData } = data
+        await updateUserData(db, chatId, userData)
+        responseJSON = `The data was successfully updated.`
       } else {
         throw errors.OTHER()
       }

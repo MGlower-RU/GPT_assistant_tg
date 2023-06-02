@@ -1,6 +1,6 @@
 import { CollectionTypes, QueryData } from "@/types/tlg";
 import { errors } from "@/utils/telegram/errors";
-import { getUserMessageData, setUserMessageData, telegramSendMessage } from "@/utils/telegram/functions";
+import { setUserMessageData } from "@/utils/telegram/functions";
 import { DocumentData, DocumentSnapshot, Firestore, QueryDocumentSnapshot, collection, deleteDoc, doc, getDoc, getDocs, query, setDoc, updateDoc, where } from "firebase/firestore";
 import { ChatCompletionRequestMessage } from "openai";
 
@@ -63,12 +63,12 @@ export const getUserData = async (db: Firestore, chatId: number): Promise<QueryD
     throw errors.FIREBASE_QUERY('User is not found')
   }
 
-  const { apiKey, messages } = userData.data() as QueryData.UserDataQuery
+  const { apiKey, messages, mode } = userData.data() as QueryData.UserDataQuery
 
   if (apiKey === null) throw errors.INVALID_APIKEY()
 
   return {
-    apiKey, messages
+    apiKey, messages, mode
   }
 }
 
@@ -84,6 +84,7 @@ export const getUserData = async (db: Firestore, chatId: number): Promise<QueryD
 export const updateDocumentData = async (db: Firestore, path: string, data: Partial<Exclude<QueryData.Data, QueryData.ErrorUnion | QueryData.ModesQuery | QueryData.MessagesQuery>>, isDocNew?: boolean) => {
   try {
     const queryRef = doc(db, path)
+
     if (isDocNew) {
       await setDoc(queryRef, data)
     } else {
@@ -94,6 +95,11 @@ export const updateDocumentData = async (db: Firestore, path: string, data: Part
   }
 }
 
+export const updateUserData = async (db: Firestore, chatId: number, data: Partial<QueryData.UserDataQuery>) => {
+  const path = `${CollectionTypes.USERS}/${chatId}`
+  await updateDocumentData(db, path, data)
+}
+
 /**
  * 
  * @param db Input your database reference
@@ -101,10 +107,8 @@ export const updateDocumentData = async (db: Firestore, path: string, data: Part
  * @param messages Input array of messages
  */
 export const updateMessages = async (db: Firestore, chatId: number, messages: QueryData.MessagesQuery): Promise<void> => {
-  const mode = getUserMessageData(chatId)?.mode ?? 'default'
   const path = `${CollectionTypes.USERS}/${chatId}`
-
-  await telegramSendMessage(chatId, `Current mode: ${mode}`)
+  const mode = (await getUserData(db, chatId)).mode
 
   if (mode !== 'default') {
     const modeDataQuery = await getDocumentData(db, `${path}/modes/${mode}`)
@@ -116,16 +120,6 @@ export const updateMessages = async (db: Firestore, chatId: number, messages: Qu
     await updateDocumentData(db, path, { messages })
     if (messages.length === 0) setUserMessageData(chatId, { last_bot_prompt: '' })
   }
-}
-
-/**
- * 
- * @param db Input your database reference
- * @param chatId Input your telegram chat id
- * @param apikey Input your apiKey
- */
-export const updateApiKey = async (db: Firestore, chatId: number, apiKey: QueryData.ApikeyQuery): Promise<void> => {
-  await updateDocumentData(db, `${CollectionTypes.USERS}/${chatId}`, { apiKey })
 }
 
 /**
@@ -153,10 +147,11 @@ const deleteDocument = async (db: Firestore, path: string) => {
 export const deleteModeDocument = async (db: Firestore, chatId: number, modeId: string) => {
   const path = `${CollectionTypes.USERS}/${chatId}/${CollectionTypes.MODES}/${modeId}`
   await deleteDocument(db, path)
+  const mode = (await getUserData(db, chatId)).mode
+  if (mode === modeId) await updateUserData(db, chatId, { mode: 'default' })
 }
 
 // INITIALIZE USER
-
 export const initializeUserDoc = async (db: Firestore, chatId: number): Promise<void> => {
   const path = `${CollectionTypes.USERS}/${chatId}`
   const userData = await getDocumentData(db, path)
@@ -164,7 +159,8 @@ export const initializeUserDoc = async (db: Firestore, chatId: number): Promise<
   if (!userData.exists()) {
     await setDoc(userData.ref, {
       apiKey: null,
-      messages: []
+      messages: [],
+      mode: 'default'
     })
 
     await setDoc(doc(db, `${path}/modes/default`), {
