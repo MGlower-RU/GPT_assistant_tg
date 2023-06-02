@@ -518,12 +518,12 @@ export const createBotPrompt = async (chatId: number, content: string) => {
 
   const botResponse = completion.data.choices[0].message;
 
-  if (botResponse?.content === undefined) {
+  if (!botResponse?.content) {
     await telegramSendMessage(chatId, "Bot couldn't answer your question%0ATry to ask another one")
   } else {
     await telegramSendMessage(chatId, botResponse.content)
 
-    messages.push({ role: botResponse.role, content: botResponse?.content ?? '' })
+    messages.push({ role: botResponse.role, content: botResponse.content })
 
     if (messages.length >= USER_MESSAGES_MAX_LENGTH * 2) {
       await new Promise(resolve => setTimeout(() => {

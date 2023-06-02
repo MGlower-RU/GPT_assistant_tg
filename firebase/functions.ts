@@ -110,10 +110,10 @@ export const updateMessages = async (db: Firestore, chatId: number, messages: Qu
   const path = `${CollectionTypes.USERS}/${chatId}`
   const mode = (await getUserData(db, chatId)).mode
 
-  if (mode !== 'default') {
+  if (mode !== 'default' && messages.length === 0) {
     const modeDataQuery = await getDocumentData(db, `${path}/modes/${mode}`)
     const modeData = modeDataQuery.data() as QueryData.ModeQuery
-    const newMessages: ChatCompletionRequestMessage[] = [...messages, { role: 'user', content: modeData.description }]
+    const newMessages: ChatCompletionRequestMessage[] = [{ role: 'user', content: modeData.description }]
 
     await updateDocumentData(db, path, { messages: newMessages })
   } else {
