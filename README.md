@@ -52,16 +52,14 @@ Create an issue on GitHub [Link](https://github.com/MGlower-RU/GPT_assistant_tg/
 
 3.  Initialize your Firebase project with Firestore and paste your credentials to .env file.
 
-4.  Create collection USERS in Firestore.
-
-5.  Setup your local server:
+4.  Setup your local server:
 
         ngrok http 3000
 
-6.  Create telegram bot with [@BotFather](https://t.me/BotFather) and copy your bot token.
+5.  Create telegram bot with [@BotFather](https://t.me/BotFather) and copy your bot token.
 
-7.  Connect your bot with a local server:
+6.  Connect your bot with a local server:
 
         https://api.telegram.org/bot[BOT_TOKEN]/setWebhook?url=[ngrok https url]
 
-8.  All is done! Your bot is ready for questions.
+7.  Everything is ready! Your bot is waiting for your questions.
