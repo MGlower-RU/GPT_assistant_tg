@@ -90,7 +90,7 @@ export const updateDocumentData = async (db: Firestore, path: string, data: Part
       await updateDoc(queryRef, data)
     }
   } catch (error) {
-    throw errors.FIREBASE_QUERY("Couldn't get document data")
+    throw errors.FIREBASE_QUERY("Couldn't update document data")
   }
 }
 
@@ -105,7 +105,7 @@ export const updateMessages = async (db: Firestore, chatId: number, messages: Qu
   const path = `${CollectionTypes.USERS}/${chatId}`
 
   if (mode !== 'default') {
-    console.log(`THE ${mode} MODE HAS BEEN SET`)
+    console.log(`Mode [${mode}] has been set`)
 
     const modeDataQuery = await getDocumentData(db, `${path}/modes/${mode}`)
     const modeData = modeDataQuery.data() as QueryData.ModeQuery
