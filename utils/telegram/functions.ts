@@ -294,7 +294,7 @@ export const setMode = async (chatId: number, modeId?: string) => {
   if (modeId && action === MessageAction.MODE_SET) {
     setUserMessageData(chatId, { mode: modeId })
 
-    await startNewBotChat(chatId, `Mode ${modeId}`)
+    await startNewBotChat(chatId)
     await telegramEditMessage(chatId, `Mode [${modeId}] is set`, last_message_id)
   } else {
     const allModes = await getAllModesQuery(chatId)
