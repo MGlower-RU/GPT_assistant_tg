@@ -291,7 +291,7 @@ export const setMode = async (chatId: number, mode?: string) => {
   const { action, last_message_id } = getUserMessageData(chatId)
 
   if (action === MessageAction.MODE_SET && mode) {
-    setUserMessageData(chatId, { mode })
+    setUserMessageData(chatId, { mode: mode })
 
     await startNewBotChat(chatId)
     await telegramEditMessage(chatId, `Mode [${mode}] is set`, last_message_id)
@@ -328,9 +328,9 @@ export const cancelLastAction = async (chatId: number, isButton?: boolean) => {
 }
 
 export const deleteMode = async (chatId: number, modeId?: string) => {
-  const { action, last_message_id, mode } = getUserMessageData(chatId)
+  const userData = getUserMessageData(chatId)
 
-  if (modeId && action === MessageAction.MODE_DELETE) {
+  if (modeId && userData.action === MessageAction.MODE_DELETE) {
     const result: QueryData.QueryResponse<QueryData.ErrorUnion> = await fetch(`${hostURL}/api/firebase`, {
       method: 'POST',
       body: JSON.stringify({
@@ -349,10 +349,10 @@ export const deleteMode = async (chatId: number, modeId?: string) => {
 
     const response = `Mode [${modeId}] was successfully deleted.`
 
-    await telegramEditMessage(chatId, response, last_message_id)
+    await telegramEditMessage(chatId, response, userData.last_message_id)
     setUserMessageData(chatId, { action: MessageAction.BOT_PROMPT })
 
-    if (modeId === mode) {
+    if (modeId === userData.mode) {
       setUserMessageData(chatId, { mode: 'default' })
 
       const response = `
@@ -374,7 +374,7 @@ export const deleteMode = async (chatId: number, modeId?: string) => {
         }
       }
 
-      await telegramEditMessage(chatId, response, last_message_id, options)
+      await telegramEditMessage(chatId, response, userData.last_message_id, options)
       setUserMessageData(chatId, { action: MessageAction.MODE_DELETE })
     }
   }
