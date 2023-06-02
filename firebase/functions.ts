@@ -104,8 +104,6 @@ export const updateMessages = async (db: Firestore, chatId: number, messages: Qu
   const mode = getUserMessageData(chatId)?.mode ?? 'default'
   const path = `${CollectionTypes.USERS}/${chatId}`
 
-  await telegramSendMessage(chatId, `Mode is: ${mode}`)
-
   if (mode !== 'default') {
     const modeDataQuery = await getDocumentData(db, `${path}/modes/${mode}`)
     const modeData = modeDataQuery.data() as QueryData.ModeQuery
