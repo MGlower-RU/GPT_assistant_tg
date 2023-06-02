@@ -25,7 +25,7 @@ const commandsString = commands.reduce((acc, { command, description }, idx) => {
 
 console.log('updated');
 
-const usersDataMessages = new Map<number, UserMessageData>()
+export const usersDataMessages = new Map<number, UserMessageData>()
 
 export const USER_MESSAGES_MAX_LENGTH = 20
 export let hostURL: string | null = null
