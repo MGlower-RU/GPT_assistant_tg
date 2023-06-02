@@ -31,15 +31,14 @@ export const USER_MESSAGES_MAX_LENGTH = 20
 export let hostURL: string | null = null
 export const isDev = !process.env.NODE_ENV || process.env.NODE_ENV === 'development'
 
-let TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN;
-// let TELEGRAM_TOKEN = isDev ? process.env.TELEGRAM_TOKEN_DEV : process.env.TELEGRAM_TOKEN;
+let TELEGRAM_TOKEN = isDev ? process.env.TELEGRAM_TOKEN_DEV : process.env.TELEGRAM_TOKEN;
 
 // setBotCommands automatically
-// (async () => {
-//   await fetch(
-//     `https://api.telegram.org/bot${TELEGRAM_TOKEN}/setMyCommands?commands=${JSON.stringify(commands)}`
-//   )
-// })()
+(async () => {
+  await fetch(
+    `https://api.telegram.org/bot${TELEGRAM_TOKEN}/setMyCommands?commands=${JSON.stringify(commands)}`
+  )
+})()
 
 // TELEGRAM COMMANDS FUNCTIONS
 
@@ -300,9 +299,6 @@ export const setMode = async (chatId: number, modeId?: string) => {
   } else {
     const allModes = await getAllModesQuery(chatId)
 
-    console.log(allModes)
-
-
     if (allModes !== null) {
       const inline_keyboard = allModes.map(mode => [{ text: mode.name, callback_data: mode.name }])
       const response = `Choose a mode to set:`
@@ -354,10 +350,10 @@ export const deleteMode = async (chatId: number, modeId?: string) => {
 
     const response = `Mode [${modeId}] was successfully deleted.`
 
-    await telegramEditMessage(chatId, response, userData.last_message_id)
+    await telegramEditMessage(chatId, response, userData?.last_message_id)
     setUserMessageData(chatId, { action: MessageAction.BOT_PROMPT })
 
-    if (modeId === userData.mode) {
+    if (modeId === userData?.mode) {
       setUserMessageData(chatId, { mode: 'default' })
 
       const response = `
