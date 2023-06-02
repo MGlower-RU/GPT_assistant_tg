@@ -6,6 +6,7 @@ import { getFirestore } from "firebase/firestore";
 
 import { CatchErrorProps, MessageAction, QueryData, RequestFirebaseApiGet, RequestFirebaseApiPost } from "@/types/tlg";
 import { errors } from "@/utils/telegram/errors";
+import { getUserMessageData, telegramSendMessage } from "@/utils/telegram/functions";
 
 const firebaseConfig = {
   apiKey: process.env.FIREBASE_APIKEY,
@@ -59,6 +60,8 @@ const firebase = async (req: NextApiRequest, res: NextApiResponse<QueryData.Data
         await updateMessages(db, chatId, data.messages)
         responseJSON = 'Messages updated'
       } else if (action === MessageAction.NEW_BOT_CHAT) {
+        await telegramSendMessage(chatId, `Fb mode: ${getUserMessageData(chatId).mode}`)
+
         await updateMessages(db, chatId, [])
         responseJSON = 'New chat has been started'
       } else if (action === MessageAction.APIKEY_INPUT) {
