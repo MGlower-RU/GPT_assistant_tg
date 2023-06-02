@@ -299,6 +299,9 @@ export const setMode = async (chatId: number, modeId?: string) => {
   } else {
     const allModes = await getAllModesQuery(chatId)
 
+    console.log(allModes)
+
+
     if (allModes !== null) {
       const inline_keyboard = allModes.map(mode => [{ text: mode.name, callback_data: mode.name }])
       const response = `Choose a mode to set:`
