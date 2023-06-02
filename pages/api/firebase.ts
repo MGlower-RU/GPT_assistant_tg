@@ -22,6 +22,8 @@ const firebase = async (req: NextApiRequest, res: NextApiResponse<QueryData.Data
   try {
     if (req.headers["firebase-query"] !== process.env.SAFETY_FETCH_HEADER) throw new Error("Don't pick on others, please :)")
 
+    let responseJSON: any = null
+
     if (req.method === 'GET') {
       console.log('firebase GET')
 
@@ -31,23 +33,24 @@ const firebase = async (req: NextApiRequest, res: NextApiResponse<QueryData.Data
 
       if (action === MessageAction.BOT_PROMPT) {
         const userData = await getUserData(db, +chatId)
-        return res.status(200).json(userData)
+        responseJSON = userData
       } else if (action === MessageAction.MODE_ALL) {
         const modesData = await getModesCollection(db, +chatId)
-        return res.status(200).json(modesData)
+        responseJSON = modesData
+      } else if (action === MessageAction.CHAT_HISTORY) {
+        const chatHistory = await getUserData(db, chatId)
+        responseJSON = chatHistory.messages
       } else {
         throw errors.OTHER("This action type doesn't exist")
       }
     } else if (req.method === 'POST') {
       console.log('POST something')
 
-      let responseJSON: any = null
       const data: RequestFirebaseApiPost = JSON.parse(req.body)
 
       const { action } = data
       const chatId = +data.chatId
 
-      // maybe access statuses directly like import { userActions } from 'tg/functions' --> check if current action
       if (action === MessageAction.INITIALIZE) {
         await initializeUserDoc(db, chatId)
         responseJSON = 'User initialized'
@@ -71,10 +74,10 @@ const firebase = async (req: NextApiRequest, res: NextApiResponse<QueryData.Data
       } else {
         throw errors.OTHER()
       }
-      return res.status(200).json(responseJSON)
     } else {
       throw errors.OTHER()
     }
+    return res.status(200).json(responseJSON)
   } catch (error) {
     console.log('error in Fb')
     const typedError = error as CatchErrorProps

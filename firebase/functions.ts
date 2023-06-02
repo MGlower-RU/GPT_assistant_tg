@@ -1,6 +1,6 @@
 import { CollectionTypes, QueryData } from "@/types/tlg";
 import { errors } from "@/utils/telegram/errors";
-import { getUserMessageData } from "@/utils/telegram/functions";
+import { getUserMessageData, setUserMessageData } from "@/utils/telegram/functions";
 import { DocumentData, DocumentSnapshot, Firestore, QueryDocumentSnapshot, collection, deleteDoc, doc, getDoc, getDocs, query, setDoc, updateDoc, where } from "firebase/firestore";
 import { ChatCompletionRequestMessage } from "openai";
 
@@ -37,6 +37,12 @@ const getDocuments = async (db: Firestore, path: string): Promise<QueryDocumentS
   }
 }
 
+/**
+ * 
+ * @param db 
+ * @param chatId 
+ * @returns 
+ */
 export const getModesCollection = async (db: Firestore, chatId: number): Promise<QueryData.ModesQuery> => {
   const path = `${CollectionTypes.USERS}/${chatId}/${CollectionTypes.MODES}`
   const modesSnapshotData = await getDocuments(db, path)
@@ -75,7 +81,7 @@ export const getUserData = async (db: Firestore, chatId: number): Promise<QueryD
  * @param data 
  * @param isDocNew 
  */
-export const updateDocumentData = async (db: Firestore, path: string, data: Partial<Exclude<QueryData.Data, QueryData.ErrorUnion | QueryData.ModesQuery>>, isDocNew?: boolean) => {
+export const updateDocumentData = async (db: Firestore, path: string, data: Partial<Exclude<QueryData.Data, QueryData.ErrorUnion | QueryData.ModesQuery | QueryData.MessagesQuery>>, isDocNew?: boolean) => {
   try {
     const queryRef = doc(db, path)
     if (isDocNew) {
@@ -106,6 +112,7 @@ export const updateMessages = async (db: Firestore, chatId: number, messages: Qu
     await updateDocumentData(db, path, { messages: newMessages })
   } else {
     await updateDocumentData(db, path, { messages })
+    if (messages.length === 0) setUserMessageData(chatId, { last_bot_prompt: '' })
   }
 }
 

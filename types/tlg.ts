@@ -42,6 +42,7 @@ export namespace QueryData {
 
   export type Data =
     | UserDataQuery
+    | MessagesQuery
     | ModesQuery
     | ModeQuery
     | ErrorUnion
@@ -68,6 +69,7 @@ export enum MessageAction {
   MODE_DELETE = 'mode_delete',
   BOT_PROMPT = 'bot_prompt',
   NEW_BOT_CHAT = 'new_bot_chat',
+  CHAT_HISTORY = 'chat_history'
 }
 
 export type UserMessageData = {
@@ -76,6 +78,7 @@ export type UserMessageData = {
   mode: string
   last_message_id: number
   new_mode_name: string
+  last_bot_prompt: string
 }
 
 export type RequestInitializeUser = {
@@ -115,6 +118,10 @@ export type RequestBotPrompt = {
 
 export type RequestModeAll = {
   action: MessageAction.MODE_ALL
+}
+
+export type RequestChatHistory = {
+  action: MessageAction.CHAT_HISTORY
 }
 
 export type RequestFirebaseApiPost = { chatId: string } & (

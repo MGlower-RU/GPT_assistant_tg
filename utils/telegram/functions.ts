@@ -10,8 +10,9 @@ const commands: BotCommand[] = [
   { command: "🆕 /new", description: 'start new conversation with bot' },
   { command: "🦖 /mode", description: 'select a mode for current chat and manage modes' },
   { command: "🔑 /apikey", description: 'input your OpenAI apikey' },
-  { command: "📜 /history", description: 'show previous conversation' },
-  { command: "📌 /retry", description: 'send previous prompt again' }
+  { command: "📜 /history", description: 'show previous conversation (in development)' },
+  { command: "📌 /retry", description: 'send previous prompt again' },
+  { command: "✖️ /cancel", description: 'cancel an active action' },
 ]
 
 const commandsString = commands.reduce((acc, { command, description }) => {
@@ -306,6 +307,19 @@ export const setMode = async (chatId: number, mode?: string) => {
   }
 }
 
+export const cancelLastAction = async (chatId: number, isButton?: boolean) => {
+  const { action, last_message_id } = getUserMessageData(chatId)
+
+  if (action === MessageAction.BOT_PROMPT) {
+    await telegramSendMessage(chatId, 'There is nothing to cancel.')
+  } else if (isButton && last_message_id) {
+    console.log('should return a previous action on button')
+  } else {
+    setUserMessageData(chatId, { action: MessageAction.BOT_PROMPT })
+    await telegramSendMessage(chatId, 'Your last action was cancelled.')
+  }
+}
+
 export const deleteMode = async (chatId: number, modeId?: string) => {
   const { action, last_message_id, mode } = getUserMessageData(chatId)
 
@@ -340,7 +354,6 @@ export const deleteMode = async (chatId: number, modeId?: string) => {
       `
       await startNewBotChat(chatId, response)
     }
-    // setNewChat if current mode === deleted mode
   } else {
     const allModes = await getAllModesQuery(chatId)
 
@@ -382,13 +395,51 @@ export const getAllModes = async (chatId: number) => {
   }
 }
 
+export const retryBotPrompt = async (chatId: number) => {
+  const { last_bot_prompt } = getUserMessageData(chatId)
+
+  if (last_bot_prompt) {
+    await createBotPrompt(chatId, last_bot_prompt)
+  } else {
+    await telegramSendMessage(chatId, `You haven't asked any questions yet.`)
+  }
+}
+
+export const getChatHistory = async (chatId: number) => {
+  const chatHistory: Exclude<QueryData.QueryResponse<QueryData.MessagesQuery | QueryData.ErrorUnion>, string> = await fetch(`${hostURL}/api/firebase?chatId=${chatId}&action=${MessageAction.CHAT_HISTORY}`, {
+    method: 'GET',
+    headers: {
+      "firebase-query": FETCH_SAFETY_HEADER
+    }
+  }).then(res => res.json())
+
+  if ('error' in chatHistory) {
+    throw chatHistory
+  }
+
+  const formattedChatHistory = chatHistory.reduce((acc, { content, role }) => {
+    return acc + `
+      %0A<b>${role}:</b> ${content}
+      %0A
+    `
+  }, '')
+
+  const response = `
+    The history of your chat:
+    %0A
+    ${formattedChatHistory}
+  `
+
+  await telegramSendMessage(chatId, response)
+}
+
 export const defaultMessage = async (message: Message.TextMessage) => {
   const { chat: { id }, text } = message
   let actionType = getUserMessageData(id).action
 
   // change to switch if possible
   if (actionType === MessageAction.BOT_PROMPT) {
-    await getBotPrompt(id, text)
+    await createBotPrompt(id, text)
   } else if (actionType === MessageAction.APIKEY_INPUT) {
     await setApikey(id, text)
   } else if (actionType === MessageAction.MODE_SET) {
@@ -413,8 +464,8 @@ export const defaultMessage = async (message: Message.TextMessage) => {
  * @param chatId id of your telegram chat
  * @param content prompt you want to pass to the bot
  */
-export const getBotPrompt = async (chatId: number, content: string) => {
-  const fbData: Exclude<QueryData.QueryResponse<QueryData.UserDataQuery | QueryData.ErrorUnion>, string> = await fetch(`${hostURL}/api/firebase?chatId=${chatId}&action=bot_prompt`, {
+export const createBotPrompt = async (chatId: number, content: string) => {
+  const fbData: Exclude<QueryData.QueryResponse<QueryData.UserDataQuery | QueryData.ErrorUnion>, string> = await fetch(`${hostURL}/api/firebase?chatId=${chatId}&action=${MessageAction.BOT_PROMPT}`, {
     method: 'GET',
     headers: {
       "firebase-query": FETCH_SAFETY_HEADER
@@ -429,8 +480,10 @@ export const getBotPrompt = async (chatId: number, content: string) => {
 
   const configuration = new Configuration({ apiKey })
   const openai = new OpenAIApi(configuration)
+  const userPrompt = { role: ChatCompletionRequestMessageRoleEnum.User, content }
 
-  messages.push({ role: ChatCompletionRequestMessageRoleEnum.User, content })
+  messages.push(userPrompt)
+  setUserMessageData(chatId, { last_bot_prompt: userPrompt.content })
 
   const completion = await openai.createChatCompletion({
     model: 'gpt-3.5-turbo',
