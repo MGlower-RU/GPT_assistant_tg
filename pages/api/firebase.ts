@@ -56,10 +56,10 @@ const firebase = async (req: NextApiRequest, res: NextApiResponse<QueryData.Data
         await initializeUserDoc(db, chatId)
         responseJSON = 'User initialized'
       } else if (action === MessageAction.BOT_PROMPT) {
-        await updateMessages(db, chatId, data.messages)
+        await updateMessages(db, chatId, data.userData)
         responseJSON = 'Messages updated'
       } else if (action === MessageAction.NEW_BOT_CHAT) {
-        await updateMessages(db, chatId, [])
+        await updateMessages(db, chatId, { ...(data.userData ?? {}), messages: [] })
         responseJSON = 'New chat has been started'
       } else if (action === MessageAction.MODE_NEW) {
         const { modeData } = data

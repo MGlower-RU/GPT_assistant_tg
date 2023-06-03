@@ -24,6 +24,7 @@ After 20 messages from you new chat will be created and Bot context will be rese
 - 📜 _/history_ - show previous conversation
 - 📌 _/retry_ - send previous prompt again
 - ✖️ _/cancel_ - cancel an active action
+- 🆓 _/test_ - ask 10 free questions to the bot
 
 ## FAQ
 

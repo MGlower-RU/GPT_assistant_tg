@@ -57,19 +57,17 @@ export const getModesCollection = async (db: Firestore, chatId: number): Promise
  * @returns 
  */
 export const getUserData = async (db: Firestore, chatId: number): Promise<QueryData.UserDataQuery> => {
-  const userData = await getDocumentData(db, `${CollectionTypes.USERS}/${chatId}`)
+  const userDataQuery = await getDocumentData(db, `${CollectionTypes.USERS}/${chatId}`)
 
-  if (!userData.exists()) {
+  if (!userDataQuery.exists()) {
     throw errors.FIREBASE_QUERY('User is not found')
   }
 
-  const { apiKey, messages, mode } = userData.data() as QueryData.UserDataQuery
+  const userData = userDataQuery.data() as QueryData.UserDataQuery
 
-  if (apiKey === null) throw errors.INVALID_APIKEY()
+  if (userData.apiKey === null) throw errors.INVALID_APIKEY()
 
-  return {
-    apiKey, messages, mode
-  }
+  return userData
 }
 
 // ADD DATA
@@ -106,18 +104,29 @@ export const updateUserData = async (db: Firestore, chatId: number, data: Partia
  * @param chatId Input your telegram chat id
  * @param messages Input array of messages
  */
-export const updateMessages = async (db: Firestore, chatId: number, messages: QueryData.MessagesQuery): Promise<void> => {
+export const updateMessages = async (db: Firestore, chatId: number, updatedUserData: { messages: QueryData.MessagesQuery } & Partial<QueryData.UserDataQuery>): Promise<void> => {
   const path = `${CollectionTypes.USERS}/${chatId}`
   const mode = (await getUserData(db, chatId)).mode
+  const { messages } = updatedUserData
+  const isTrialLeft = updatedUserData.isTrial ? (updatedUserData?.trialUses ?? 0) > 0 : false
 
   if (mode !== 'default' && messages.length === 0) {
     const modeDataQuery = await getDocumentData(db, `${path}/modes/${mode}`)
     const modeData = modeDataQuery.data() as QueryData.ModeQuery
     const newMessages: ChatCompletionRequestMessage[] = [{ role: 'user', content: modeData.description }]
 
-    await updateDocumentData(db, path, { messages: newMessages })
+    if (isTrialLeft) {
+      await updateDocumentData(db, path, { messages: newMessages, trialUses: updatedUserData.trialUses! - 1 })
+    } else {
+      await updateDocumentData(db, path, { messages: newMessages })
+    }
   } else {
-    await updateDocumentData(db, path, { messages })
+    if (isTrialLeft) {
+      await updateDocumentData(db, path, { messages, trialUses: updatedUserData.trialUses! - 1 })
+    } else {
+      await updateDocumentData(db, path, { messages })
+    }
+
     if (messages.length === 0) setUserMessageData(chatId, { last_bot_prompt: '' })
   }
 }
@@ -159,8 +168,10 @@ export const initializeUserDoc = async (db: Firestore, chatId: number): Promise<
   if (!userData.exists()) {
     await setDoc(userData.ref, {
       apiKey: null,
+      mode: 'default',
+      isTrial: true,
+      trialUses: 10,
       messages: [],
-      mode: 'default'
     })
 
     await setDoc(doc(db, `${path}/modes/default`), {
