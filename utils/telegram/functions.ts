@@ -161,6 +161,7 @@ export async function setApikey(chatId: number, apiKey?: string) {
 
     await setTestApikey(chatId, false)
     await telegramSendMessage(chatId, 'ApiKey successfully updated')
+    await setTestApikey(chatId, false)
     setUserMessageData(chatId, { action: MessageAction.BOT_PROMPT })
   } else {
     await telegramSendMessage(chatId, '🔑 Please, input your apiKey:')
@@ -210,6 +211,9 @@ export const setTestApikey = async (chatId: number, isTrial: boolean = true) => 
   if (typeof result !== 'string') {
     throw result
   }
+
+  const response = `You have ${isTrial ? 'Entered' : 'Left'} a trial mode`
+  await telegramSendMessage(chatId, response)
 }
 
 /**
@@ -521,7 +525,10 @@ export const createBotPrompt = async (chatId: number, content: string) => {
   const { messages, apiKey, isTrial, trialUses } = fbData
 
   if (isTrial && trialUses < 1) {
-    throw errors.INVALID_APIKEY(`You have 0 trial messages left. Please, input your own apiKey with a command /apikey`)
+    throw errors.INVALID_APIKEY(`
+      You have 0 trial messages left.
+      %0APlease, input your own apiKey with a command /apikey
+    `)
   }
 
   const configuration = new Configuration({ apiKey: isTrial ? process.env.OPENAI_API_KEY! : apiKey })
