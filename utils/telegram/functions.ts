@@ -159,7 +159,6 @@ export async function setApikey(chatId: number, apiKey?: string) {
       throw result
     }
 
-    await setTestApikey(chatId, false)
     await telegramSendMessage(chatId, 'ApiKey successfully updated')
     await setTestApikey(chatId, false)
     setUserMessageData(chatId, { action: MessageAction.BOT_PROMPT })
@@ -174,12 +173,12 @@ export async function setApikey(chatId: number, apiKey?: string) {
  * @param chatId id of a chat
  * @param message optional. Message to be displayed as a greeting for new chat.
  */
-export async function startNewBotChat(chatId: number, options?: { message: string, userData?: Partial<QueryData.UserDataQuery> }) {
+export async function startNewBotChat(chatId: number, message?: string) {
   const result: QueryData.QueryResponse<QueryData.ErrorUnion> = await fetch(`${hostURL}/api/firebase`, {
     method: 'POST',
     body: JSON.stringify({
-      action: MessageAction.NEW_BOT_CHAT,
-      userData: options?.userData ?? {},
+      action: MessageAction.UPDATE_MESSAGES,
+      messages: [],
       chatId
     }),
     headers: {
@@ -191,7 +190,7 @@ export async function startNewBotChat(chatId: number, options?: { message: strin
     throw result
   }
 
-  await telegramSendMessage(chatId, options?.message ?? 'How can I help you today?')
+  await telegramSendMessage(chatId, message ?? 'How can I help you today?')
   setUserMessageData(chatId, { action: MessageAction.BOT_PROMPT })
 }
 
@@ -399,7 +398,7 @@ export const deleteMode = async (chatId: number, modeId?: string) => {
         You have deleted your last conversation mode,
         %0Atherefore, new chat without any mode has started.
       `
-      await startNewBotChat(chatId, { message: response })
+      await startNewBotChat(chatId, response)
     }
   } else {
     const allModes = await getAllModesQuery(chatId)
@@ -463,20 +462,26 @@ export const getChatHistory = async (chatId: number) => {
     throw chatHistory
   }
 
-  const formattedChatHistory = chatHistory.reduce((acc, { content, role }) => {
-    return acc + `
-      %0A<b>${role}:</b> ${content}
+  if (chatHistory.length > 0) {
+    const formattedChatHistory = chatHistory.reduce((acc, { content, role }) => {
+      return acc + `
+        %0A<b>${role}:</b> ${content}
+        %0A
+      `
+    }, '')
+
+    const response = `
+      The history of your chat:
       %0A
+      ${formattedChatHistory}
     `
-  }, '')
 
-  const response = `
-    The history of your chat:
-    %0A
-    ${formattedChatHistory}
-  `
+    await telegramSendMessage(chatId, response)
+  } else {
+    const response = `You haven't asked any questions yet.`
 
-  await telegramSendMessage(chatId, response)
+    await telegramSendMessage(chatId, response)
+  }
 }
 
 export const defaultMessage = async (message: Message.TextMessage) => {
@@ -562,21 +567,17 @@ export const createBotPrompt = async (chatId: number, content: string) => {
         resolve('')
       }, 1000))
 
-      await startNewBotChat(chatId, {
-        message: `
-          ${'-'.repeat(100)}
-          %0ANew conversation has started.
-          %0APrevious conversation context was cleared
-        `,
-        userData: { trialUses, isTrial }
-      })
+      await startNewBotChat(chatId, `
+        ${'-'.repeat(100)}
+        %0ANew conversation has started.
+        %0APrevious conversation context was cleared
+      `)
     } else {
       await fetch(`${hostURL}/api/firebase`, {
         method: 'POST',
         body: JSON.stringify({
-          action: MessageAction.BOT_PROMPT,
-          userData: { messages, trialUses, isTrial },
-          chatId
+          action: MessageAction.UPDATE_MESSAGES,
+          messages, chatId
         }),
         headers: {
           "firebase-query": FETCH_SAFETY_HEADER
