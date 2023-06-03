@@ -7,6 +7,8 @@ export namespace QueryData {
     apiKey: ApikeyQuery
     messages: MessagesQuery
     mode: string
+    isTrial: boolean
+    trialUses: number
   }
   export type ModeQuery = {
     name: string,
@@ -89,11 +91,12 @@ export type RequestInitializeUser = {
 
 export type RequestUpdateMessages = {
   action: MessageAction.BOT_PROMPT
-  messages: QueryData.MessagesQuery
+  userData: { messages: QueryData.MessagesQuery } & Partial<QueryData.UserDataQuery>
 }
 
 export type RequestStartNewChat = {
   action: MessageAction.NEW_BOT_CHAT
+  userData?: Partial<QueryData.UserDataQuery>
 }
 
 export type RequestAddMode = {

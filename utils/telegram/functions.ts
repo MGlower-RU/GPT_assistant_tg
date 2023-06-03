@@ -13,8 +13,9 @@ const commands: BotCommand[] = [
   { command: "/history", description: 'show previous conversation' },
   { command: "/retry", description: 'send previous prompt again' },
   { command: "/cancel", description: 'cancel an active action' },
+  { command: "/test", description: 'ask 10 free questions to the bot' },
 ]
-const commandsIcons = ['😣', '🆕', '🦖', '🔑', '📜', '📌', '✖️']
+const commandsIcons = ['😣', '🆕', '🦖', '🔑', '📜', '📌', '✖️', '🆓']
 
 const commandsString = commands.reduce((acc, { command, description }, idx) => {
   return acc + `
@@ -158,6 +159,7 @@ export async function setApikey(chatId: number, apiKey?: string) {
       throw result
     }
 
+    await setTestApikey(chatId, false)
     await telegramSendMessage(chatId, 'ApiKey successfully updated')
     setUserMessageData(chatId, { action: MessageAction.BOT_PROMPT })
   } else {
@@ -171,11 +173,12 @@ export async function setApikey(chatId: number, apiKey?: string) {
  * @param chatId id of a chat
  * @param message optional. Message to be displayed as a greeting for new chat.
  */
-export async function startNewBotChat(chatId: number, message?: string) {
+export async function startNewBotChat(chatId: number, options?: { message: string, userData?: Partial<QueryData.UserDataQuery> }) {
   const result: QueryData.QueryResponse<QueryData.ErrorUnion> = await fetch(`${hostURL}/api/firebase`, {
     method: 'POST',
     body: JSON.stringify({
       action: MessageAction.NEW_BOT_CHAT,
+      userData: options?.userData ?? {},
       chatId
     }),
     headers: {
@@ -187,8 +190,26 @@ export async function startNewBotChat(chatId: number, message?: string) {
     throw result
   }
 
-  await telegramSendMessage(chatId, message ?? 'How can I help you today?')
+  await telegramSendMessage(chatId, options?.message ?? 'How can I help you today?')
   setUserMessageData(chatId, { action: MessageAction.BOT_PROMPT })
+}
+
+export const setTestApikey = async (chatId: number, isTrial: boolean = true) => {
+  const result: QueryData.QueryResponse<QueryData.ErrorUnion> = await fetch(`${hostURL}/api/firebase`, {
+    method: 'POST',
+    body: JSON.stringify({
+      action: MessageAction.USER_DATA,
+      userData: { isTrial },
+      chatId
+    }),
+    headers: {
+      "firebase-query": FETCH_SAFETY_HEADER
+    }
+  }).then(res => res.json())
+
+  if (typeof result !== 'string') {
+    throw result
+  }
 }
 
 /**
@@ -374,7 +395,7 @@ export const deleteMode = async (chatId: number, modeId?: string) => {
         You have deleted your last conversation mode,
         %0Atherefore, new chat without any mode has started.
       `
-      await startNewBotChat(chatId, response)
+      await startNewBotChat(chatId, { message: response })
     }
   } else {
     const allModes = await getAllModesQuery(chatId)
@@ -497,9 +518,13 @@ export const createBotPrompt = async (chatId: number, content: string) => {
     throw fbData
   }
 
-  const { messages, apiKey } = fbData
+  const { messages, apiKey, isTrial, trialUses } = fbData
 
-  const configuration = new Configuration({ apiKey })
+  if (isTrial && trialUses < 1) {
+    throw errors.INVALID_APIKEY(`You have 0 trial messages left. Please, input your own apiKey with a command /apikey`)
+  }
+
+  const configuration = new Configuration({ apiKey: isTrial ? process.env.OPENAI_API_KEY! : apiKey })
   const openai = new OpenAIApi(configuration)
   const userPrompt = { role: ChatCompletionRequestMessageRoleEnum.User, content }
 
@@ -530,17 +555,20 @@ export const createBotPrompt = async (chatId: number, content: string) => {
         resolve('')
       }, 1000))
 
-      await startNewBotChat(chatId, `
-        ${'-'.repeat(100)}
-        %0ANew conversation has started.
-        %0APrevious conversation context was cleared
-      `)
+      await startNewBotChat(chatId, {
+        message: `
+          ${'-'.repeat(100)}
+          %0ANew conversation has started.
+          %0APrevious conversation context was cleared
+        `,
+        userData: { trialUses, isTrial }
+      })
     } else {
       await fetch(`${hostURL}/api/firebase`, {
         method: 'POST',
         body: JSON.stringify({
           action: MessageAction.BOT_PROMPT,
-          messages,
+          userData: { messages, trialUses, isTrial },
           chatId
         }),
         headers: {
