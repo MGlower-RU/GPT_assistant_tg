@@ -65,7 +65,9 @@ export const getUserData = async (db: Firestore, chatId: number): Promise<QueryD
 
   const userData = userDataQuery.data() as QueryData.UserDataQuery
 
-  if (userData.apiKey === null) throw errors.INVALID_APIKEY()
+  const { apiKey, isTrial } = userData
+
+  if (!isTrial && apiKey === null) throw errors.INVALID_APIKEY()
 
   return userData
 }
@@ -104,25 +106,27 @@ export const updateUserData = async (db: Firestore, chatId: number, data: Partia
  * @param chatId Input your telegram chat id
  * @param messages Input array of messages
  */
-export const updateMessages = async (db: Firestore, chatId: number, updatedUserData: { messages: QueryData.MessagesQuery } & Partial<QueryData.UserDataQuery>): Promise<void> => {
+export const updateMessages = async (db: Firestore, chatId: number, messages: QueryData.MessagesQuery): Promise<void> => {
   const path = `${CollectionTypes.USERS}/${chatId}`
-  const mode = (await getUserData(db, chatId)).mode
-  const { messages } = updatedUserData
-  const isTrialLeft = updatedUserData.isTrial ? (updatedUserData?.trialUses ?? 0) > 0 : false
+  const userDataQuery = await getUserData(db, chatId)
+
+  const { mode, isTrial, trialUses } = userDataQuery
+  const isTrialLeft = isTrial ? trialUses > 0 : false
 
   if (mode !== 'default' && messages.length === 0) {
     const modeDataQuery = await getDocumentData(db, `${path}/modes/${mode}`)
+
     const modeData = modeDataQuery.data() as QueryData.ModeQuery
     const newMessages: ChatCompletionRequestMessage[] = [{ role: 'user', content: modeData.description }]
 
     if (isTrialLeft) {
-      await updateDocumentData(db, path, { messages: newMessages, trialUses: updatedUserData.trialUses! - 1 })
+      await updateDocumentData(db, path, { messages: newMessages, trialUses: trialUses - 1 })
     } else {
       await updateDocumentData(db, path, { messages: newMessages })
     }
   } else {
     if (isTrialLeft) {
-      await updateDocumentData(db, path, { messages, trialUses: updatedUserData.trialUses! - 1 })
+      await updateDocumentData(db, path, { messages, trialUses: trialUses - 1 })
     } else {
       await updateDocumentData(db, path, { messages })
     }

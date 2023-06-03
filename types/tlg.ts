@@ -74,6 +74,7 @@ export enum MessageAction {
   NEW_BOT_CHAT = 'new_bot_chat',
   CHAT_HISTORY = 'chat_history',
   USER_DATA = 'user_data',
+  UPDATE_MESSAGES = 'update_messages'
 }
 
 export type UserMessageData = {
@@ -90,13 +91,8 @@ export type RequestInitializeUser = {
 }
 
 export type RequestUpdateMessages = {
-  action: MessageAction.BOT_PROMPT
-  userData: { messages: QueryData.MessagesQuery } & Partial<QueryData.UserDataQuery>
-}
-
-export type RequestStartNewChat = {
-  action: MessageAction.NEW_BOT_CHAT
-  userData?: Partial<QueryData.UserDataQuery>
+  action: MessageAction.UPDATE_MESSAGES
+  messages: QueryData.MessagesQuery
 }
 
 export type RequestAddMode = {
@@ -133,7 +129,6 @@ export type RequestFirebaseApiPost = { chatId: string } & (
   | RequestInitializeUser
   | RequestUpdateMessages
   | RequestUpdateUserData
-  | RequestStartNewChat
   | RequestAddMode
   | RequestDeleteMode
 )

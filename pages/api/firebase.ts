@@ -55,22 +55,24 @@ const firebase = async (req: NextApiRequest, res: NextApiResponse<QueryData.Data
       if (action === MessageAction.INITIALIZE) {
         await initializeUserDoc(db, chatId)
         responseJSON = 'User initialized'
-      } else if (action === MessageAction.BOT_PROMPT) {
-        await updateMessages(db, chatId, data.userData)
-        responseJSON = 'Messages updated'
-      } else if (action === MessageAction.NEW_BOT_CHAT) {
-        await updateMessages(db, chatId, { ...(data.userData ?? {}), messages: [] })
-        responseJSON = 'New chat has been started'
+      } else if (action === MessageAction.UPDATE_MESSAGES) {
+        const { messages } = data
+
+        await updateMessages(db, chatId, messages)
+        responseJSON = messages.length === 0 ? 'New chat has been started' : 'Messages updated'
       } else if (action === MessageAction.MODE_NEW) {
         const { modeData } = data
+
         await addNewMode(db, chatId, modeData)
         responseJSON = `Mode [${modeData.name}] was created.`
       } else if (action === MessageAction.MODE_DELETE) {
         const { modeId } = data
+
         await deleteModeDocument(db, chatId, modeId)
         responseJSON = `Mode [${modeId}] was deleted.`
       } else if (action === MessageAction.USER_DATA) {
         const { userData } = data
+
         await updateUserData(db, chatId, userData)
         responseJSON = `The data was successfully updated.`
       } else {
